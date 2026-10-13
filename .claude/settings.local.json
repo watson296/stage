@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(powershell -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\('C:\\\\Users\\\\황지후\\\\Desktop\\\\WorkSpace\\\\Saegyeol\\\\사진압축해제\\\\새결로고\\(화질상승\\).png'\\)\\)\")",
-      "Bash(python3 -c ' *)"
-    ]
-  }
-}
