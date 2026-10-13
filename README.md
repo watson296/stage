@@ -24,14 +24,16 @@
 필요한 것: Node.js 18 이상.
 
 ```bash
-npm install     # 의존성 설치
-npm run dev     # 개발 서버 실행
-npm run build   # 배포용 빌드 (dist/)
-npm test        # 테스트 실행
+npm install          # 의존성 설치
+npm run dev          # 개발 서버 실행
+npm run build        # 배포용 빌드 (dist/)
+npm run build:single # 단일 HTML 파일로 빌드
+npm test             # 테스트 실행
 ```
 
-> 지금은 순수 HTML·Canvas 프로토타입(`template.html`)에서 Vite + TypeScript
-> 기반으로 옮기는 중입니다. 진행 계획은 [docs/ROADMAP.md](docs/ROADMAP.md)를 보세요.
+스택은 Vite + TypeScript(프레임워크 없음), 테스트는 vitest입니다. 좌표는
+모두 미터 단위의 월드 좌표이며, 입력은 Pointer Events로 마우스·터치·펜을
+함께 처리합니다. 앞으로의 계획은 [docs/ROADMAP.md](docs/ROADMAP.md)를 보세요.
 
 ## 라이선스
 
