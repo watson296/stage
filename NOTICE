@@ -1,0 +1,34 @@
+Stage Planner
+Copyright 2026 Team Saegyeol (새결)
+
+이 제품의 소스 코드는 Apache License 2.0으로 배포됩니다(LICENSE 파일 참고).
+
+─────────────────────────────────────────────────────────────────────
+브랜드 자산 (코드 라이선스에 포함되지 않음)
+─────────────────────────────────────────────────────────────────────
+
+다음 파일은 새결(Team Saegyeol)의 상표이자 브랜드 자산이며, Apache
+License 2.0의 적용 대상이 아닙니다.
+
+  - assets/brand/saegyeol-logo-vertical.png
+  - assets/brand/saegyeol-symbol.png
+
+이 로고와 "새결 / SAEGYEOL" 이름·워드마크에 대한 모든 권리는 새결에
+있습니다. 코드 라이선스는 이 자산의 사용 권리를 부여하지 않습니다.
+
+이 저장소를 포크하거나 재배포할 때:
+
+  - 새결 로고와 "새결 / SAEGYEOL" 이름을, 본인 또는 본인 조직의 로고와
+    이름으로 교체해야 합니다.
+  - 새결과의 제휴·추천·보증을 암시하는 방식으로 로고나 이름을 사용하면
+    안 됩니다.
+  - 로고를 쓰려면 새결의 사전 서면 동의가 필요합니다.
+
+앱 정보 화면, README 상단, PNG·PDF 내보내기 하단에 들어가는 로고는
+위 조건에 따른 새결의 저작권·상표 표시입니다.
+
+─────────────────────────────────────────────────────────────────────
+This product includes brand assets (the Saegyeol logo and the
+"새결 / SAEGYEOL" name and wordmark) that are trademarks of Team Saegyeol
+and are NOT licensed under the Apache License 2.0. Forks and
+redistributions must replace these assets with their own.
