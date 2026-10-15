@@ -1,0 +1,13 @@
+{
+  "name": "@stage-planner/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts"
+  },
+  "dependencies": {
+    "@stage-planner/shared": "*"
+  }
+}

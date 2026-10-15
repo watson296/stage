@@ -1,18 +1,25 @@
 {
   "name": "stage-planner",
+  "private": true,
   "version": "0.1.0",
-  "description": "밴드·공연 무대를 평면도로 구상하는 터치 우선 도구",
+  "description": "공연 무대 배치와 당일 운영을 함께 하는 도구",
   "license": "Apache-2.0",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "build:single": "tsc --noEmit && vite build --mode single",
-    "preview": "vite preview",
+    "dev": "npm run dev -w @stage-planner/app",
+    "build": "npm run typecheck && npm run build -w @stage-planner/app",
+    "build:single": "npm run typecheck && npm run build:single -w @stage-planner/app",
+    "preview": "npm run preview -w @stage-planner/app",
+    "host": "npm run start -w @stage-planner/server",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vite-plugin-singlefile": "^2.0.3",

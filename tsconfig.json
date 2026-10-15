@@ -12,7 +12,19 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "types": ["vite/client"]
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@stage-planner/shared": ["packages/shared/src/index.ts"],
+      "@stage-planner/shared/*": ["packages/shared/src/*"]
+    }
   },
-  "include": ["src", "tests", "vite.config.ts"]
+  "include": [
+    "packages/*/src",
+    "packages/*/tests",
+    "packages/app/vite.config.ts",
+    "vitest.config.ts"
+  ]
 }

@@ -104,3 +104,32 @@ export function clampToStage(
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
+
+// ── 다각형 (무대 모양) ──────────────────────────────────────────────────────
+
+/** 다각형을 감싸는 축 정렬 경계상자. 무대 눈금과 화면 맞춤에 씁니다. */
+export function polygonBounds(points: Vec2[]): AABB {
+  if (!points.length) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+}
+
+/** 점이 다각형 안에 있는지(ray casting). */
+export function pointInPolygon(points: Vec2[], p: Vec2): boolean {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const a = points[i];
+    const b = points[j];
+    const hit =
+      a.y > p.y !== b.y > p.y &&
+      p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y || Number.EPSILON) + a.x;
+    if (hit) inside = !inside;
+  }
+  return inside;
+}
