@@ -1,4 +1,4 @@
-import { cloneDoc, emptyDoc, type Doc } from "../model/types";
+import { cloneEvent, emptyEvent, type Event } from "@stage-planner/shared";
 
 type Listener = () => void;
 
@@ -6,18 +6,18 @@ type Listener = () => void;
 //  - commit(fn): 한 번에 끝나는 동작(추가/삭제/회전/연결 등) → 한 단계로 기록
 //  - beginTxn/mutate/commitTxn: 드래그처럼 연속으로 바뀌는 동작 → 통째로 한 단계
 export class Store {
-  private doc: Doc;
-  private past: Doc[] = [];
-  private future: Doc[] = [];
-  private txn: Doc | null = null;
+  private doc: Event;
+  private past: Event[] = [];
+  private future: Event[] = [];
+  private txn: Event | null = null;
   private listeners = new Set<Listener>();
   private readonly cap = 100;
 
-  constructor(doc: Doc = emptyDoc()) {
+  constructor(doc: Event = emptyEvent()) {
     this.doc = doc;
   }
 
-  get(): Doc {
+  get(): Event {
     return this.doc;
   }
 
@@ -30,24 +30,24 @@ export class Store {
     for (const l of this.listeners) l();
   }
 
-  private pushPast(snapshot: Doc): void {
+  private pushPast(snapshot: Event): void {
     this.past.push(snapshot);
     if (this.past.length > this.cap) this.past.shift();
     this.future = [];
   }
 
-  commit(mutator: (doc: Doc) => void): void {
-    this.pushPast(cloneDoc(this.doc));
+  commit(mutator: (doc: Event) => void): void {
+    this.pushPast(cloneEvent(this.doc));
     mutator(this.doc);
     this.emit();
   }
 
   beginTxn(): void {
-    this.txn = cloneDoc(this.doc);
+    this.txn = cloneEvent(this.doc);
   }
 
   // 트랜잭션 중 즉시 반영(히스토리에 쌓지 않음)
-  mutate(mutator: (doc: Doc) => void): void {
+  mutate(mutator: (doc: Event) => void): void {
     mutator(this.doc);
     this.emit();
   }
@@ -66,7 +66,7 @@ export class Store {
     this.emit();
   }
 
-  replace(doc: Doc): void {
+  replace(doc: Event): void {
     this.doc = doc;
     this.past = [];
     this.future = [];
@@ -83,14 +83,14 @@ export class Store {
 
   undo(): void {
     if (!this.past.length) return;
-    this.future.push(cloneDoc(this.doc));
+    this.future.push(cloneEvent(this.doc));
     this.doc = this.past.pop()!;
     this.emit();
   }
 
   redo(): void {
     if (!this.future.length) return;
-    this.past.push(cloneDoc(this.doc));
+    this.past.push(cloneEvent(this.doc));
     this.doc = this.future.pop()!;
     this.emit();
   }

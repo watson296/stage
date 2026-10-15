@@ -26,14 +26,27 @@
 ```bash
 npm install          # 의존성 설치
 npm run dev          # 개발 서버 실행
-npm run build        # 배포용 빌드 (dist/)
+npm run build        # 배포용 빌드
 npm run build:single # 단일 HTML 파일로 빌드
 npm test             # 테스트 실행
+npm run typecheck    # 타입 검사
 ```
 
-스택은 Vite + TypeScript(프레임워크 없음), 테스트는 vitest입니다. 좌표는
-모두 미터 단위의 월드 좌표이며, 입력은 Pointer Events로 마우스·터치·펜을
-함께 처리합니다. 앞으로의 계획은 [docs/ROADMAP.md](docs/ROADMAP.md)를 보세요.
+### 저장소 구조
+
+```
+packages/
+├── app/      브라우저 앱 (Vite + Preact)
+├── server/   호스트 서버 (5단계에서 구현)
+└── shared/   데이터 스키마, 계산 함수, 메시지 타입
+```
+
+스택은 Vite + TypeScript + Preact이고 테스트는 vitest입니다. 좌표는 모두
+미터 단위의 월드 좌표이며, 입력은 Pointer Events로 마우스·터치·펜을 함께
+처리합니다.
+
+자세한 명세는 [docs/SPEC.md](docs/SPEC.md), 앞으로의 계획은
+[docs/ROADMAP.md](docs/ROADMAP.md)를 보세요.
 
 ## 라이선스
 

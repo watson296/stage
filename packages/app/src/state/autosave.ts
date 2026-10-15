@@ -1,4 +1,4 @@
-import type { Doc } from "../model/types";
+import type { Event } from "@stage-planner/shared";
 
 // IndexedDB에 작업을 자동 저장합니다. 저장소를 못 쓰면(사생활 모드 등)
 // 조용히 넘기지 않고 onError로 알립니다. iPad Safari는 저장소를 비울 수
@@ -24,7 +24,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveDoc(doc: Doc): Promise<void> {
+export async function saveEvent(doc: Event): Promise<void> {
   const db = await openDB();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -36,12 +36,12 @@ export async function saveDoc(doc: Doc): Promise<void> {
   db.close();
 }
 
-export async function loadDoc(): Promise<Doc | null> {
+export async function loadEvent(): Promise<Event | null> {
   const db = await openDB();
-  const result = await new Promise<Doc | null>((resolve, reject) => {
+  const result = await new Promise<Event | null>((resolve, reject) => {
     const tx = db.transaction(STORE, "readonly");
     const req = tx.objectStore(STORE).get(KEY);
-    req.onsuccess = () => resolve((req.result as Doc) ?? null);
+    req.onsuccess = () => resolve((req.result as Event) ?? null);
     req.onerror = () => reject(req.error ?? new Error("불러오기에 실패했습니다."));
   });
   db.close();
@@ -49,7 +49,7 @@ export async function loadDoc(): Promise<Doc | null> {
 }
 
 export interface Autosaver {
-  schedule(doc: Doc): void;
+  schedule(doc: Event): void;
   flush(): Promise<void>;
 }
 
@@ -59,14 +59,14 @@ export function createAutosaver(
   delayMs = 500,
 ): Autosaver {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  let pending: Doc | null = null;
+  let pending: Event | null = null;
 
   async function run(): Promise<void> {
     if (!pending) return;
     const doc = pending;
     pending = null;
     try {
-      await saveDoc(doc);
+      await saveEvent(doc);
     } catch (e) {
       onError(e instanceof Error ? e.message : "자동 저장에 실패했습니다.");
     }

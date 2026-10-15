@@ -1,14 +1,15 @@
-import type { Doc } from "../model/types";
-import { migrate, type MigrateResult } from "../model/migrate";
+import { migrate, type Event, type MigrateResult } from "@stage-planner/shared";
 
-// 현재 문서를 JSON 파일로 저장합니다. 브라우저가 파일을 내려받습니다.
-export function downloadJSON(doc: Doc): void {
-  const data = {
-    version: doc.version,
-    stage: doc.stage,
-    objects: doc.objects,
-    postits: doc.postits,
-    customTypes: doc.customTypes,
+// 현재 공연을 JSON 파일로 저장합니다.
+// 접속 코드는 기본으로 빼고 내보냅니다(SPEC 10장). 파일을 남에게 줄 때
+// 코드가 함께 나가지 않도록 하기 위해서입니다.
+export function downloadJSON(ev: Event, includeCodes = false): void {
+  const data: Record<string, unknown> = {
+    ...ev,
+    devices: [],
+    accessCodes: includeCodes
+      ? ev.accessCodes
+      : { operator: "", staff: "", display: "", rotatedAt: "" },
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -19,8 +20,8 @@ export function downloadJSON(doc: Doc): void {
   URL.revokeObjectURL(url);
 }
 
-// 파일 텍스트를 파싱·검증·마이그레이션해 Doc으로 만듭니다. 실패하면 던집니다.
-export function parseDesign(text: string): MigrateResult {
+/** 파일 텍스트를 파싱·검증·마이그레이션해 Event로 만듭니다. 실패하면 던집니다. */
+export function parseEvent(text: string): MigrateResult {
   let raw: unknown;
   try {
     raw = JSON.parse(text);

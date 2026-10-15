@@ -1,4 +1,4 @@
-import type { Vec2 } from "../model/types";
+import type { Vec2 } from "@stage-planner/shared";
 
 // 마우스·터치·펜을 Pointer Events 하나로 처리합니다.
 //  - 손가락 하나: 잡을 게 있으면 끌기, 빈 곳이면 화면 이동(드래그) 또는 탭

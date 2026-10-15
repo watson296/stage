@@ -1,4 +1,4 @@
-import type { Vec2 } from "../model/types";
+import type { Vec2 } from "@stage-planner/shared";
 
 // 월드(m) → 화면(CSS px) 변환. 가로세로 같은 축척(scale) 하나만 쓰므로
 // 무대 비율이 왜곡되지 않습니다. screenX = ox + worldX * scale.
