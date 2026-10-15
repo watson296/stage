@@ -1,0 +1,1493 @@
+diff --git a/template.html b/template.html
+index 2c8503a..39e0049 100644
+--- a/template.html
++++ b/template.html
+@@ -2,6 +2,7 @@
+ <html lang="ko">
+ <head>
+ <meta charset="UTF-8">
++<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+ <title>새결 Stage Planner</title>
+ <style>
+ *{margin:0;padding:0;box-sizing:border-box}
+@@ -11,7 +12,8 @@
+   --txt:#c9d1d9;--txt2:#8b949e;--txt3:#6e7681
+ }
+ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;
+-  height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
++  height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px;
++  word-break:keep-all;overflow-wrap:break-word}
+ 
+ /* Header */
+ .hdr{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 16px;
+@@ -52,17 +54,19 @@ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans
+ .main{display:flex;flex:1;overflow:hidden}
+ 
+ /* Palette */
+-.pal{width:148px;background:var(--surf);border-right:1px solid var(--brd);
++.pal{width:156px;background:var(--surf);border-right:1px solid var(--brd);
+   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+ .pal-sec{padding:8px 7px 2px}
+-.pal-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;
++.pal-hdr{font-size:10px;font-weight:700;letter-spacing:1.2px;
+   color:var(--txt3);padding:0 2px 5px;border-bottom:1px solid var(--brd);margin-bottom:5px}
+-.pal-item{display:flex;align-items:center;gap:6px;padding:6px 5px;border-radius:5px;
+-  cursor:grab;margin-bottom:2px;border:1px solid transparent;user-select:none;transition:all .15s}
++.pal-item{display:flex;align-items:center;gap:8px;padding:5px 5px;border-radius:6px;min-height:40px;
++  cursor:grab;margin-bottom:2px;border:1px solid transparent;user-select:none;-webkit-user-select:none;
++  transition:background .15s,border-color .15s;touch-action:manipulation}
+ .pal-item:hover{background:var(--surf2);border-color:var(--brd)}
+-.pal-item:active{cursor:grabbing;opacity:.7}
+-.pi-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+-.pi-nm{font-size:11px;color:var(--txt2);line-height:1.3}
++.pal-item:active{cursor:grabbing}
++.pal-item.placing{background:rgba(233,69,96,.12);border-color:var(--acc)}
++.pi-ico{width:30px;height:30px;flex-shrink:0}
++.pi-nm{font-size:12px;color:var(--txt2);line-height:1.3}
+ .pal-foot{padding:8px;margin-top:auto;border-top:1px solid var(--brd)}
+ .pi-mode-btn{width:100%;padding:7px;background:#9a7d0a;color:#fff;border:none;
+   border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;transition:all .15s}
+@@ -76,9 +80,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans
+ .view-hdr{background:var(--surf2);border-bottom:1px solid var(--brd);padding:5px 10px;
+   font-size:12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+ .view-hint{font-size:10px;color:var(--txt3);font-weight:400}
+-.view-div{width:3px;background:var(--brd);flex-shrink:0}
+ .cv-wrap{flex:1;overflow:hidden;position:relative}
+ canvas{display:block;cursor:default}
++#topC{touch-action:none}
+ 
+ /* Props bar */
+ .props{background:var(--surf);border-top:1px solid var(--brd);padding:7px 14px;
+@@ -86,10 +90,12 @@ canvas{display:block;cursor:default}
+ .pg{display:flex;align-items:center;gap:5px}
+ .pl{font-size:11px;color:var(--txt3)}
+ .pv{font-size:12px;font-weight:600}
+-.pi{width:52px;background:var(--bg);border:1px solid var(--brd);color:var(--txt);
+-  padding:2px 5px;border-radius:4px;font-size:11px;font-family:inherit}
+-.pi:focus{outline:none;border-color:var(--acc)}
+-.pi-wide{width:90px}
++.pi{width:58px;background:var(--bg);border:1px solid var(--brd);color:var(--txt);
++  padding:3px 5px;border-radius:4px;font-size:12px;font-family:inherit;font-variant-numeric:tabular-nums}
++.pi:focus,.pi-sel:focus{outline:none;border-color:var(--acc)}
++.pi-wide{width:96px}
++.pi-sel{background:var(--bg);border:1px solid var(--brd);color:var(--txt);
++  padding:3px 4px;border-radius:4px;font-size:12px;font-family:inherit;max-width:130px}
+ .no-sel{color:var(--txt3);font-style:italic;font-size:12px}
+ .sel-nm{color:var(--acc);font-weight:700;font-size:13px}
+ 
+@@ -97,7 +103,7 @@ canvas{display:block;cursor:default}
+ .sbar{background:var(--surf);border-top:1px solid var(--brd);padding:3px 14px;
+   display:flex;align-items:center;gap:14px;font-size:10px;color:var(--txt3);flex-shrink:0}
+ .sbar label{display:flex;align-items:center;gap:4px;cursor:pointer}
+-#mousePos{margin-left:auto}
++#mousePos{margin-left:auto;font-variant-numeric:tabular-nums}
+ .badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;
+   font-weight:700;background:var(--acc);color:#fff}
+ 
+@@ -128,8 +134,9 @@ canvas{display:block;cursor:default}
+ .custom-item-wrap{position:relative}
+ .del-ci{position:absolute;right:2px;top:50%;transform:translateY(-50%);
+   background:transparent;border:none;color:#f85149;cursor:pointer;
+-  font-size:13px;opacity:0;transition:opacity .15s;line-height:1}
+-.pal-item:hover .del-ci{opacity:1}
++  font-size:13px;opacity:0;transition:opacity .15s;line-height:1;padding:6px}
++.custom-item-wrap:hover .del-ci{opacity:1}
++@media (hover:none){.del-ci{opacity:.8}}
+ 
+ ::-webkit-scrollbar{width:5px}
+ ::-webkit-scrollbar-track{background:var(--bg)}
+@@ -173,13 +180,14 @@ canvas{display:block;cursor:default}
+   <div class="sep"></div>
+   <span class="dim-lbl">격자</span>
+   <select class="dim-sel" id="gridSz" onchange="updateGrid()">
++    <option value="0.05">5cm</option>
+     <option value="0.1">0.1m</option>
+     <option value="0.25" selected>0.25m</option>
+     <option value="0.5">0.5m</option>
+     <option value="1">1m</option>
+   </select>
+   <label style="display:flex;align-items:center;gap:4px;color:var(--txt3);font-size:11px;cursor:pointer">
+-    <input type="checkbox" id="snapCk" checked onchange="state.snap=this.checked"> 스냅
++    <input type="checkbox" id="snapCk" checked onchange="S.snap=this.checked"> 스냅
+   </label>
+   <div class="sep"></div>
+   <button class="btn btn-sm btn-del" onclick="clearAll()">🗑 초기화</button>
+@@ -187,50 +195,9 @@ canvas{display:block;cursor:default}
+ 
+ <!-- Main -->
+ <div class="main">
+-  <!-- Palette -->
++  <!-- Palette (JS가 채웁니다) -->
+   <div class="pal">
+-    <div class="pal-sec">
+-      <div class="pal-hdr">악기</div>
+-      <div class="pal-item" draggable="true" data-type="drumkit">
+-        <div class="pi-dot" style="background:#e74c3c"></div><div class="pi-nm">🥁 드럼킷</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="guitarAmp">
+-        <div class="pi-dot" style="background:#e67e22"></div><div class="pi-nm">🎸 기타 앰프</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="bassAmp">
+-        <div class="pi-dot" style="background:#f39c12"></div><div class="pi-nm">🎸 베이스 앰프</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="keyboard">
+-        <div class="pi-dot" style="background:#9b59b6"></div><div class="pi-nm">🎹 키보드</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="vocalMic">
+-        <div class="pi-dot" style="background:#1abc9c"></div><div class="pi-nm">🎤 보컬 마이크</div>
+-      </div>
+-    </div>
+-    <div class="pal-sec">
+-      <div class="pal-hdr">음향</div>
+-      <div class="pal-item" draggable="true" data-type="mainSpeaker">
+-        <div class="pi-dot" style="background:#3498db"></div><div class="pi-nm">🔊 메인 스피커</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="monitor">
+-        <div class="pi-dot" style="background:#2ecc71"></div><div class="pi-nm">🔊 모니터</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="subwoofer">
+-        <div class="pi-dot" style="background:#566573"></div><div class="pi-nm">🔉 서브우퍼</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="mixer">
+-        <div class="pi-dot" style="background:#34495e"></div><div class="pi-nm">🎚️ 믹서 테이블</div>
+-      </div>
+-    </div>
+-    <div class="pal-sec">
+-      <div class="pal-hdr">기타</div>
+-      <div class="pal-item" draggable="true" data-type="riser">
+-        <div class="pi-dot" style="background:#7f8c8d"></div><div class="pi-nm">▭ 드럼 라이저</div>
+-      </div>
+-      <div class="pal-item" draggable="true" data-type="cableTray">
+-        <div class="pi-dot" style="background:#95a5a6"></div><div class="pi-nm">— 케이블 트레이</div>
+-      </div>
+-    </div>
++    <div id="palSecs"></div>
+     <div class="pal-sec" id="customPalSec" style="display:none">
+       <div class="pal-hdr">커스텀</div>
+       <div id="customPalItems"></div>
+@@ -246,7 +213,7 @@ canvas{display:block;cursor:default}
+     <div class="canvas-row">
+       <div class="view-panel" id="topPanel">
+         <div class="view-hdr">
+-          📐 Top View <span class="view-hint">위에서 본 평면도 — 드래그로 배치</span>
++          📐 Top View <span class="view-hint">장비를 탭한 뒤 무대를 탭하거나, 끌어다 놓습니다. 모서리 손잡이로 크기, 위쪽 동그라미로 회전</span>
+           <span class="badge" id="objCount">0 items</span>
+         </div>
+         <div class="cv-wrap" id="topWrap">
+@@ -257,16 +224,17 @@ canvas{display:block;cursor:default}
+ 
+     <!-- Properties bar -->
+     <div class="props" id="propsBar">
+-      <span class="no-sel" id="noSelMsg">← 오브젝트를 클릭하면 속성이 표시됩니다</span>
++      <span class="no-sel" id="noSelMsg">장비를 선택하면 크기와 위치를 바꿀 수 있습니다</span>
+       <div id="selProps" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+         <span class="sel-nm" id="selNm"></span>
+-        <div class="pg"><span class="pl">X:</span><input class="pi" type="number" id="pX" step="0.1" oninput="updateObjPos()">m</div>
+-        <div class="pg"><span class="pl">Y:</span><input class="pi" type="number" id="pY" step="0.1" oninput="updateObjPos()">m</div>
+-        <div class="pg"><span class="pl">Z(높이):</span><input class="pi" type="number" id="pZ" step="0.1" oninput="updateObjPos()">m</div>
+-        <div class="pg"><span class="pl">크기:</span><span class="pv" id="pSize"></span></div>
+-        <div class="pg"><span class="pl">회전:</span><span class="pv" id="pRot"></span>°</div>
+-        <div class="pg"><span class="pl">레이블:</span><input class="pi pi-wide" type="text" id="pLabel" oninput="updateObjLabel()"></div>
+-        <button class="btn btn-sm" onclick="rotateSelected()">↻ 회전</button>
++        <div class="pg obj-only"><span class="pl">규격</span><select class="pi-sel" id="pVar" onchange="applyVariant()"></select></div>
++        <div class="pg obj-only"><span class="pl">가로</span><input class="pi" type="number" id="pW" step="0.05" min="0.1" oninput="updateObjSize()">m</div>
++        <div class="pg obj-only"><span class="pl">세로</span><input class="pi" type="number" id="pD" step="0.05" min="0.1" oninput="updateObjSize()">m</div>
++        <div class="pg obj-only"><span class="pl">회전</span><input class="pi" type="number" id="pRot" step="15" oninput="updateObjRot()">°</div>
++        <div class="pg obj-only"><span class="pl">중심 X</span><input class="pi" type="number" id="pX" step="0.1" oninput="updateObjPos()">m</div>
++        <div class="pg obj-only"><span class="pl">중심 Y</span><input class="pi" type="number" id="pY" step="0.1" oninput="updateObjPos()">m</div>
++        <div class="pg"><span class="pl" id="pLabelLbl">레이블</span><input class="pi pi-wide" type="text" id="pLabel" oninput="updateObjLabel()"></div>
++        <button class="btn btn-sm obj-only" onclick="rotateSelected()">↻ 회전</button>
+         <button class="btn btn-sm btn-del" onclick="deleteSelected()">✕</button>
+       </div>
+     </div>
+@@ -276,7 +244,8 @@ canvas{display:block;cursor:default}
+ <!-- Status Bar -->
+ <div class="sbar">
+   <span>무대: <strong id="stageDimTxt">8m × 6m × 4m</strong></span>
+-  <span id="statusMsg">준비됨 | 팔레트에서 드래그해 배치하세요</span>
++  <span id="statusMsg">준비됨 | 왼쪽 목록에서 장비를 골라 배치합니다</span>
++  <label><input type="checkbox" id="lblCk" checked onchange="S.showLabels=this.checked;render()"> 이름 표시</label>
+   <span id="mousePos">x:0m y:0m</span>
+ </div>
+ 
+@@ -345,20 +314,70 @@ canvas{display:block;cursor:default}
+ <input type="file" id="jsonIn" accept=".json" style="display:none" onchange="onJSONLoad(event)">
+ 
+ <script>
+-// ─── Object type definitions ───────────────────────────────────────────────
++// ─── 상수 ──────────────────────────────────────────────────────────────────
++const FONT = '"Pretendard Variable", Pretendard, "Segoe UI", system-ui, sans-serif';
++const FILE_VERSION = 2;
++const MIN_SIZE = 0.1;      // m
++const ROT_OFF  = 28;       // 회전 손잡이가 본체에서 떨어진 거리(px)
++const SEL_COLOR = '#e94560';
++
++// 장비 분류별 색. 원색 블록 대신 도면처럼 보이도록 채도를 낮춘 세 가지 톤만 씁니다.
++const CAT = {
++  inst:  {name:'악기', c:'#d9b38c'},
++  audio: {name:'음향', c:'#6fa3e8'},
++  stage: {name:'무대', c:'#9aa8ba'},
++};
++const BRASS = '#c9a45c';   // 심벌
++
++// ─── 장비 정의 ────────────────────────────────────────────────────────────
++// 앞쪽(+y, 화면 아래)이 장비가 바라보는 방향입니다. variants는 실제 규격(가로 w × 깊이 d × 높이 h, m)입니다.
+ const OT = {
+-  drumkit:     {name:'드럼킷',       w:1.8, d:1.5, h:1.2, color:'#e74c3c', e:'🥁'},
+-  guitarAmp:   {name:'기타 앰프',    w:0.6, d:0.5, h:0.7, color:'#e67e22', e:'🎸'},
+-  bassAmp:     {name:'베이스 앰프',  w:0.7, d:0.55,h:0.75,color:'#f39c12', e:'🎸'},
+-  keyboard:    {name:'키보드',       w:1.3, d:0.4, h:0.9, color:'#9b59b6', e:'🎹'},
+-  vocalMic:    {name:'보컬 마이크',  w:0.3, d:0.3, h:1.6, color:'#1abc9c', e:'🎤'},
+-  mainSpeaker: {name:'메인 스피커',  w:0.6, d:0.5, h:1.2, color:'#3498db', e:'🔊'},
+-  monitor:     {name:'모니터',       w:0.5, d:0.4, h:0.4, color:'#2ecc71', e:'🔊'},
+-  subwoofer:   {name:'서브우퍼',     w:0.6, d:0.6, h:0.6, color:'#566573', e:'🔉'},
+-  mixer:       {name:'믹서 테이블',  w:1.0, d:0.6, h:1.0, color:'#34495e', e:'🎚️'},
+-  riser:       {name:'드럼 라이저',  w:2.0, d:2.0, h:0.3, color:'#7f8c8d', e:'▭'},
+-  cableTray:   {name:'케이블 트레이',w:1.0, d:0.2, h:0.1, color:'#95a5a6', e:'—'},
++  drumkit:    {name:'드럼킷',     cat:'inst',  draw:'drums', variants:[
++                {l:'5기통',      w:1.8,  d:1.5,  h:1.2},
++                {l:'4기통',      w:1.6,  d:1.4,  h:1.2},
++                {l:'투베이스',   w:2.2,  d:1.6,  h:1.2}]},
++  guitarAmp:  {name:'기타 앰프',  cat:'inst',  draw:'amp', variants:[
++                {l:'콤보 1×12',  w:0.6,  d:0.27, h:0.5},
++                {l:'콤보 2×12',  w:0.7,  d:0.27, h:0.55},
++                {l:'스택 4×12',  w:0.76, d:0.36, h:1.3}]},
++  bassAmp:    {name:'베이스 앰프',cat:'inst',  draw:'amp', variants:[
++                {l:'캐비닛 4×10',w:0.62, d:0.45, h:0.75},
++                {l:'콤보 1×15',  w:0.58, d:0.42, h:0.65},
++                {l:'캐비닛 8×10',w:0.62, d:0.4,  h:1.25}]},
++  keyboard:   {name:'키보드',     cat:'inst',  draw:'keys', variants:[
++                {l:'88건반',     w:1.35, d:0.45, h:0.9},
++                {l:'61건반',     w:1.0,  d:0.4,  h:0.9},
++                {l:'2단 스탠드', w:1.35, d:0.7,  h:1.1}]},
++  vocalMic:   {name:'보컬 마이크',cat:'inst',  draw:'mic', variants:[
++                {l:'붐 스탠드',  w:0.55, d:0.55, h:1.6},
++                {l:'원형 받침',  w:0.3,  d:0.3,  h:1.6}]},
++  mainSpeaker:{name:'메인 스피커',cat:'audio', draw:'speaker', variants:[
++                {l:'15인치',     w:0.45, d:0.42, h:0.75},
++                {l:'12인치',     w:0.37, d:0.35, h:0.6},
++                {l:'라인 어레이',w:1.0,  d:0.5,  h:0.3}]},
++  monitor:    {name:'모니터',     cat:'audio', draw:'wedge', rot:180, variants:[
++                {l:'12인치 웨지',w:0.6,  d:0.4,  h:0.35},
++                {l:'15인치 웨지',w:0.68, d:0.45, h:0.4}]},
++  subwoofer:  {name:'서브우퍼',   cat:'audio', draw:'sub', variants:[
++                {l:'18인치',     w:0.6,  d:0.7,  h:0.55},
++                {l:'2×18인치',   w:1.2,  d:0.75, h:0.6}]},
++  mixer:      {name:'믹서',       cat:'audio', draw:'mixer', variants:[
++                {l:'콘솔',       w:0.6,  d:0.5,  h:0.2},
++                {l:'FOH 테이블', w:1.5,  d:0.8,  h:0.9}]},
++  riser:      {name:'라이저',     cat:'stage', draw:'riser', variants:[
++                {l:'2×2m',       w:2.0,  d:2.0,  h:0.4},
++                {l:'2.4×2m',     w:2.4,  d:2.0,  h:0.4},
++                {l:'1×2m',       w:1.0,  d:2.0,  h:0.4}]},
++  cableTray:  {name:'케이블 커버',cat:'stage', draw:'cable', variants:[
++                {l:'1m',         w:1.0,  d:0.15, h:0.05},
++                {l:'2m',         w:2.0,  d:0.15, h:0.05}]},
+ };
++const PAL_ORDER = {
++  inst:  ['drumkit','guitarAmp','bassAmp','keyboard','vocalMic'],
++  audio: ['mainSpeaker','monitor','subwoofer','mixer'],
++  stage: ['riser','cableTray'],
++};
++const FLOOR_TYPES = new Set(['riser','cableTray']);   // 바닥에 깔리는 것은 먼저 그립니다
+ 
+ const PI_COLORS = ['#f1c40f','#e74c3c','#3498db','#2ecc71','#9b59b6','#e67e22','#1abc9c','#bdc3c7'];
+ const PW = 132, PH = 68;
+@@ -370,18 +389,19 @@ const S = {
+   objects:[], postits:[],
+   sel:null, selType:null,
+   mode:'select',
+-  gridSz:0.25, snap:true,
++  placeType:null,
++  gridSz:0.25, snap:true, showLabels:true,
+   nextId:1,
+   connectSrc:null,
+ };
+ 
+-let topC, topX, sideC = null, sideX = null;
+-let tL = null; // top layout cache
++let topC, topX;
++let CW = 0, CH = 0, DPR = 1;   // 캔버스 CSS 크기와 화면 배율
++let tL = null;
+ 
+ // drag state
+ const DR = {active:false, kind:null, id:null, smx:0, smy:0, ox:0, oy:0};
+ 
+-// pending postit
+ let piPos = null;
+ let piColor = '#f1c40f';
+ 
+@@ -390,7 +410,6 @@ window.addEventListener('DOMContentLoaded', () => {
+   topC = document.getElementById('topC');
+   topX = topC.getContext('2d');
+ 
+-  // Build swatches
+   const sc = document.getElementById('piSwatches');
+   PI_COLORS.forEach(c => {
+     const d = document.createElement('div');
+@@ -404,47 +423,35 @@ window.addEventListener('DOMContentLoaded', () => {
+     sc.appendChild(d);
+   });
+ 
+-  // Resize
++  buildPalette();
++
+   const ro = new ResizeObserver(() => { resizeCvs(); render(); });
+   ro.observe(document.getElementById('topWrap'));
+ 
+-  // Palette drag
+-  document.querySelectorAll('.pal-item').forEach(el => {
+-    el.addEventListener('dragstart', e => e.dataTransfer.setData('ot', el.dataset.type));
+-  });
+-
+-  // Drop on top canvas
++  // 데스크톱: 목록에서 끌어다 놓기
+   topC.addEventListener('dragover', e => e.preventDefault());
+   topC.addEventListener('drop', e => {
+     e.preventDefault();
+     const type = e.dataTransfer.getData('ot');
+     if (!OT[type]) return;
+     const r = topC.getBoundingClientRect();
+-    const l = calcTL();
+-    let wx = (e.clientX - r.left - l.ox) / l.scX;
+-    let wy = (e.clientY - r.top  - l.oy) / l.scY;
+-    if (S.snap) { wx = snap(wx); wy = snap(wy); }
+-    const t = OT[type];
+-    wx = clamp(wx, 0, S.stage.w - t.w);
+-    wy = clamp(wy, 0, S.stage.d - t.d);
+-    addObj(type, wx, wy);
++    const p = toWorld(e.clientX - r.left, e.clientY - r.top, calcTL());
++    addObj(type, p.x, p.y);
+   });
+ 
+-  // Mouse events
+-  topC.addEventListener('mousedown', onMD);
+-  topC.addEventListener('mousemove', onMM);
+-  topC.addEventListener('mouseup',   onMU);
+-  topC.addEventListener('mouseleave',onMU);
++  // 마우스·터치·펜을 한 가지 이벤트로 처리합니다
++  topC.addEventListener('pointerdown',   onPD);
++  topC.addEventListener('pointermove',   onPM);
++  topC.addEventListener('pointerup',     onPU);
++  topC.addEventListener('pointercancel', onPU);
+ 
+-  // Keyboard
+   document.addEventListener('keydown', e => {
+-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
++    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+     if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+-    if (e.key === 'r' || e.key === 'R') rotateSelected();
++    if (e.key === 'r' || e.key === 'R') rotateSelected(e.shiftKey ? -45 : 45);
+     if (e.key === 'Escape') setMode('select');
+   });
+ 
+-  // Modal Enter
+   document.getElementById('piModal').addEventListener('keydown', e => {
+     if (e.key === 'Enter') confirmPi();
+     if (e.key === 'Escape') cancelPi();
+@@ -461,26 +468,34 @@ window.addEventListener('DOMContentLoaded', () => {
+ // ─── Resize ─────────────────────────────────────────────────────────────────
+ function resizeCvs() {
+   const tw = document.getElementById('topWrap');
+-  topC.width  = tw.clientWidth;
+-  topC.height = tw.clientHeight;
++  DPR = window.devicePixelRatio || 1;
++  CW = tw.clientWidth; CH = tw.clientHeight;
++  topC.width  = Math.round(CW * DPR);
++  topC.height = Math.round(CH * DPR);
++  topC.style.width  = CW + 'px';
++  topC.style.height = CH + 'px';
+ }
+ 
+ // ─── Layout ─────────────────────────────────────────────────────────────────
++// 가로·세로 축척을 하나로 맞춥니다. 축척이 다르면 원형 장비가 타원이 되고 실제 비율이 틀어집니다.
+ function calcTL() {
+-  const avW = topC.width  - 2*MARGIN, avH = topC.height - 2*MARGIN;
+-  const scX = avW / S.stage.w;   // 가로 스케일: 캔버스 너비를 꽉 채움
+-  const scY = avH / S.stage.d;   // 세로 스케일: 캔버스 높이를 꽉 채움
+-  const pw = avW, ph = avH;
+-  const ox = MARGIN, oy = MARGIN;
+-  return {scX, scY, ox, oy, pw, ph};
++  const avW = Math.max(10, CW - 2*MARGIN), avH = Math.max(10, CH - 2*MARGIN - 12);
++  const sc = Math.min(avW / S.stage.w, avH / S.stage.d);
++  const pw = S.stage.w * sc, ph = S.stage.d * sc;
++  const ox = (CW - pw) / 2, oy = MARGIN + (avH - ph) / 2;
++  return {sc, scX:sc, scY:sc, ox, oy, pw, ph};
+ }
++function toWorld(mx, my, L) { return {x:(mx - L.ox) / L.sc, y:(my - L.oy) / L.sc}; }
+ 
+ // ─── Utils ──────────────────────────────────────────────────────────────────
+ function snap(v) { return S.snap ? Math.round(v / S.gridSz) * S.gridSz : v; }
++function snapSize(v) { return Math.max(MIN_SIZE, S.snap ? Math.round(v / S.gridSz) * S.gridSz : v); }
+ function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+ function trunc(s, n) { if (!s) return ''; return s.length > n ? s.slice(0, n-1)+'…' : s; }
++function r2(v) { return Math.round(v * 100) / 100; }
++function normDeg(a) { a = a % 360; return a < 0 ? a + 360 : a; }
+ function rrect(ctx, x, y, w, h, r) {
+-  r = Math.min(r, w/2, h/2);
++  r = Math.max(0, Math.min(r, w/2, h/2));
+   ctx.beginPath();
+   ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+   ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+@@ -488,17 +503,320 @@ function rrect(ctx, x, y, w, h, r) {
+   ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+   ctx.closePath();
+ }
++function hexA(hex, a) {
++  const h = (hex || '#888888').replace('#','');
++  const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h.slice(0,6), 16);
++  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
++}
++function box(ctx, x, y, w, h, r, fill, stroke, lw) {
++  if (w <= 0 || h <= 0) return;
++  rrect(ctx, x, y, w, h, r);
++  if (fill)   { ctx.fillStyle = fill; ctx.fill(); }
++  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1.2; ctx.stroke(); }
++}
++function circ(ctx, x, y, r, fill, stroke, lw) {
++  ctx.beginPath(); ctx.arc(x, y, Math.max(0.5, r), 0, Math.PI*2);
++  if (fill)   { ctx.fillStyle = fill; ctx.fill(); }
++  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
++}
++function seg(ctx, x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
++
++// ─── 기하 계산 (회전 포함) ────────────────────────────────────────────────
++// o.x, o.y는 회전 전 사각형의 왼쪽 위, 회전은 중심을 기준으로 합니다.
++function objCenter(o) { return {x:o.x + o.w/2, y:o.y + o.d/2}; }
++function objPx(o, L) {
++  return {cx:L.ox + (o.x + o.w/2)*L.sc, cy:L.oy + (o.y + o.d/2)*L.sc,
++          hw:o.w*L.sc/2, hd:o.d*L.sc/2, th:o.rot*Math.PI/180};
++}
++function toLocal(px, mx, my) {
++  const dx = mx - px.cx, dy = my - px.cy, c = Math.cos(px.th), s = Math.sin(px.th);
++  return {x: dx*c + dy*s, y: -dx*s + dy*c};
++}
++// 회전한 장비가 무대 밖으로 나가지 않게 중심을 제한합니다
++function clampObj(o) {
++  const th = o.rot*Math.PI/180, c = Math.abs(Math.cos(th)), s = Math.abs(Math.sin(th));
++  const ex = (o.w*c + o.d*s)/2, ey = (o.w*s + o.d*c)/2;
++  let {x:cx, y:cy} = objCenter(o);
++  cx = 2*ex >= S.stage.w ? S.stage.w/2 : clamp(cx, ex, S.stage.w - ex);
++  cy = 2*ey >= S.stage.d ? S.stage.d/2 : clamp(cy, ey, S.stage.d - ey);
++  o.x = cx - o.w/2; o.y = cy - o.d/2;
++}
++function setCenter(o, cx, cy) { o.x = cx - o.w/2; o.y = cy - o.d/2; }
++function matchVariant(o) {
++  const t = OT[o.type]; if (!t || !t.variants) return -1;
++  return t.variants.findIndex(v => Math.abs(v.w - o.w) < 0.005 && Math.abs(v.d - o.d) < 0.005);
++}
++function typeColor(o) {
++  const t = OT[o.type];
++  if (t && t.cat && CAT[t.cat]) return CAT[t.cat].c;
++  return o.color || (t && t.color) || '#8e44ad';
++}
+ 
+-// ─── Objects ─────────────────────────────────────────────────────────────────
+-function addObj(type, x, y) {
++// ─── 장비 그림 (위에서 본 모습) ───────────────────────────────────────────
++// 모든 함수는 장비 중심이 원점, 단위는 px, 앞쪽이 +y입니다. s = 1m당 px.
++const SHAPES = {
++  drums(ctx, o, s, hw, hd, c) {
++    // 1.8 × 1.5m 기준 위치를 가로·세로 비율대로 늘립니다
++    const kx = o.w/1.8, ky = o.d/1.5, kr = Math.min(kx, ky);
++    const X = v => v*kx*s, Y = v => v*ky*s, R = v => Math.max(1.2, v*kr*s);
++    const drum = (x, y, r) => {
++      circ(ctx, X(x), Y(y), R(r), hexA(c,.26), c, 1.2);
++      circ(ctx, X(x), Y(y), R(r)*0.78, null, hexA(c,.4), 0.8);
++    };
++    const cym = (x, y, r) => {
++      circ(ctx, X(x), Y(y), R(r), hexA(BRASS,.14), hexA(BRASS,.85), 1);
++      circ(ctx, X(x), Y(y), R(r)*0.55, null, hexA(BRASS,.3), 0.7);
++      circ(ctx, X(x), Y(y), Math.max(1, R(r)*0.08), BRASS, null);
++    };
++    const kick = (x) => {
++      const kw = X(0.5), kd = Y(0.42), ky0 = Y(0.27) - kd/2;
++      box(ctx, X(x) - kw/2, ky0, kw, kd, 3, hexA(c,.2), c, 1.2);
++      ctx.strokeStyle = c; ctx.lineWidth = 2;
++      seg(ctx, X(x) - kw/2 + 1, ky0 + 1.5, X(x) + kw/2 - 1, ky0 + 1.5);
++      seg(ctx, X(x) - kw/2 + 1, ky0 + kd - 1.5, X(x) + kw/2 - 1, ky0 + kd - 1.5);
++    };
++    // 드럼 의자
++    ctx.setLineDash([3,3]);
++    circ(ctx, X(0), Y(-0.53), R(0.17), hexA(c,.08), hexA(c,.65), 1);
++    ctx.setLineDash([]);
++    const twin = o.sub ? o.sub === '투베이스' : o.w >= 2.05;   // 규격으로 정합니다 (크기를 바꿔도 유지)
++    if (twin) { kick(-0.3); kick(0.3); } else kick(0);
++    drum(-0.47, -0.24, 0.2);   // 플로어 탐
++    drum( 0.30, -0.18, 0.17);  // 스네어
++    drum( 0.17,  0.00, 0.13);  // 탐 1
++    drum(-0.17,  0.00, 0.14);  // 탐 2
++    cym( 0.63, -0.08, 0.18);   // 하이햇
++    cym( 0.45,  0.36, 0.22);   // 크래시
++    cym(-0.58,  0.18, 0.26);   // 라이드
++  },
++
++  amp(ctx, o, s, hw, hd, c) {
++    box(ctx, -hw, -hd, 2*hw, 2*hd, Math.min(4, hw*.2), hexA(c,.2), c, 1.3);
++    // 앞면 그릴
++    const g = Math.max(3, 2*hd*0.24);
++    box(ctx, -hw+1.5, hd-g, 2*hw-3, g-1.5, 2, hexA(c,.45), null);
++    ctx.strokeStyle = hexA(c,.6); ctx.lineWidth = 0.7;
++    for (let x = -hw + 4; x < hw - 3; x += 3) seg(ctx, x, hd-g+1.5, x, hd-2.5);
++    // 손잡이
++    const hl = hw*0.7, hh = Math.max(2.5, 2*hd*0.14);
++    box(ctx, -hl/2, -hd*0.25 - hh/2, hl, hh, hh/2, null, hexA(c,.75), 1.2);
++    // 스택은 헤드 위치 표시
++    if (o.h >= 1.0) { ctx.strokeStyle = hexA(c,.5); ctx.lineWidth = 1; seg(ctx, -hw+2, -hd+3, hw-2, -hd+3); }
++  },
++
++  keys(ctx, o, s, hw, hd, c) {
++    // 연주자는 -y 쪽(뒤)에 서서 객석(+y)을 봅니다. 건반은 연주자 쪽에 있습니다.
++    const tiers = o.d >= 0.6 ? 2 : 1;
++    const td = 2*hd / tiers;
++    // 스탠드 다리
++    ctx.strokeStyle = hexA(c,.35); ctx.lineWidth = 1.5;
++    seg(ctx, -hw*0.75, -hd+2, -hw*0.55, hd-2); seg(ctx, hw*0.75, -hd+2, hw*0.55, hd-2);
++    for (let i = 0; i < tiers; i++) {
++      const by = -hd + i*td + 1.5, bh = td - 3;
++      box(ctx, -hw, by, 2*hw, bh, 3, hexA(c,.22), c, 1.2);
++      const pad = Math.max(2, 2*hw*0.035);
++      const kx0 = -hw + pad, kw = 2*hw - 2*pad, kby = by + Math.max(1.5, bh*0.1), kbh = bh*0.52;
++      box(ctx, kx0, kby, kw, kbh, 1, 'rgba(230,236,242,.85)', null);
++      const n = o.w >= 1.2 ? 52 : 36, wk = kw / n, off = n === 52 ? 5 : 0;
++      if (wk >= 2.2) {
++        ctx.fillStyle = '#1b2230';
++        for (let k = 0; k < n-1; k++) {
++          const m = (k + off) % 7;
++          if (m === 2 || m === 6) continue;          // E-F, B-C 사이에는 검은 건반이 없습니다
++          ctx.fillRect(kx0 + (k+1)*wk - wk*0.3, kby, wk*0.6, kbh*0.6);
++        }
++      } else {
++        ctx.strokeStyle = 'rgba(27,34,48,.55)'; ctx.lineWidth = 0.7;
++        for (let k = 7 - off; k < n; k += 7) seg(ctx, kx0 + k*wk, kby, kx0 + k*wk, kby + kbh);
++      }
++    }
++  },
++
++  mic(ctx, o, s, hw, hd, c) {
++    const r = Math.min(hw, hd);
++    if (o.w < 0.4 && o.d < 0.4) {               // 원형 받침
++      circ(ctx, 0, 0, r*0.9, hexA(c,.2), c, 1.2);
++      circ(ctx, 0, 0, Math.max(2, r*0.22), c, null);
++      return;
++    }
++    const hx = 0, hy = -r*0.1;
++    ctx.strokeStyle = c; ctx.lineWidth = 2;      // 삼각대 다리
++    [270, 30, 150].forEach(a => {
++      const t = a*Math.PI/180;
++      seg(ctx, hx, hy, hx + Math.cos(t)*r*0.9, hy + Math.sin(t)*r*0.9);
++    });
++    ctx.strokeStyle = hexA(c,.8); ctx.lineWidth = 1.5;   // 붐 암
++    seg(ctx, hx, hy, r*0.35, r*0.82);
++    circ(ctx, r*0.35, r*0.82, Math.max(2.5, 0.035*s), c, null);   // 마이크
++    circ(ctx, hx, hy, Math.max(2, r*0.1), c, null);
++  },
++
++  speaker(ctx, o, s, hw, hd, c) {
++    const bw = hw*0.7;     // 뒤가 좁은 사다리꼴 캐비닛
++    ctx.beginPath(); ctx.moveTo(-hw, hd); ctx.lineTo(hw, hd); ctx.lineTo(bw, -hd); ctx.lineTo(-bw, -hd); ctx.closePath();
++    ctx.fillStyle = hexA(c,.22); ctx.fill(); ctx.strokeStyle = c; ctx.lineWidth = 1.3; ctx.stroke();
++    const g = Math.max(3, 2*hd*0.22), k = (hw - bw) * (g / (2*hd));
++    ctx.beginPath(); ctx.moveTo(-hw+2, hd-1.5); ctx.lineTo(hw-2, hd-1.5);
++    ctx.lineTo(hw-2-k, hd-g); ctx.lineTo(-hw+2+k, hd-g); ctx.closePath();
++    ctx.fillStyle = hexA(c,.5); ctx.fill();
++    if (o.w / o.d >= 1.6) {        // 라인 어레이: 리깅 프레임
++      ctx.strokeStyle = hexA(c,.55); ctx.lineWidth = 1;
++      seg(ctx, -bw*0.6, -hd*0.4, bw*0.6, -hd*0.4);
++    }
++  },
++
++  wedge(ctx, o, s, hw, hd, c) {
++    box(ctx, -hw, -hd, 2*hw, 2*hd, 3, hexA(c,.18), c, 1.3);
++    const y0 = -hd*0.15;           // 비스듬한 앞판
++    box(ctx, -hw+2, y0, 2*hw-4, hd-y0-2, 2, hexA(c,.42), null);
++    ctx.strokeStyle = hexA(c,.7); ctx.lineWidth = 0.8;
++    for (let i = 1; i <= 3; i++) { const y = y0 + (hd-y0)*i/4; seg(ctx, -hw+4, y, hw-4, y); }
++  },
++
++  sub(ctx, o, s, hw, hd, c) {
++    box(ctx, -hw, -hd, 2*hw, 2*hd, 3, hexA(c,.26), c, 1.3);
++    const g = Math.max(3, 2*hd*0.14);
++    box(ctx, -hw+1.5, hd-g, 2*hw-3, g-1.5, 2, hexA(c,.55), null);
++    const n = clamp(Math.round(o.w/0.6), 1, 4), sw = 2*hw/n, rr = Math.min(sw, 2*hd-g)*0.33;
++    for (let i = 0; i < n; i++) {
++      const x = -hw + sw*(i+.5), y = -g/2;
++      circ(ctx, x, y, rr, null, hexA(c,.75), 1);
++      circ(ctx, x, y, rr*0.35, hexA(c,.45), null);
++    }
++  },
++
++  mixer(ctx, o, s, hw, hd, c) {
++    let x0 = -hw, y0 = -hd, w = 2*hw, h = 2*hd;
++    if (o.w >= 1.2) {              // 테이블 위에 콘솔
++      ctx.setLineDash([4,3]);
++      box(ctx, -hw, -hd, 2*hw, 2*hd, 4, hexA(c,.07), hexA(c,.7), 1);
++      ctx.setLineDash([]);
++      w = Math.min(2*hw*0.62, 0.9*s); h = Math.min(2*hd*0.72, 0.6*s);
++      x0 = -w/2; y0 = -hd + (2*hd - h)*0.3;
++    }
++    box(ctx, x0, y0, w, h, 3, hexA(c,.24), c, 1.3);
++    // 엔지니어는 +y 쪽에 섭니다. 페이더는 엔지니어 쪽, 노브는 안쪽입니다.
++    const pad = Math.max(2, w*0.05), mw = w*0.17;
++    const cw = w - 2*pad - mw - pad;
++    const n = clamp(Math.floor(cw / (0.028*s)), 4, 32), sw = cw / n;
++    const fy0 = y0 + h*0.5, fy1 = y0 + h - pad;
++    for (let i = 0; i < n; i++) {
++      const x = x0 + pad + sw*(i+.5);
++      ctx.strokeStyle = hexA(c,.5); ctx.lineWidth = 1; seg(ctx, x, fy0, x, fy1);
++      const fy = fy0 + (fy1-fy0)*(0.25 + 0.45*((i*37) % 10)/10);
++      ctx.fillStyle = '#e3eaf2';
++      const cwd = Math.max(2.5, sw*0.6), chh = Math.max(1.5, h*0.045);
++      ctx.fillRect(x - cwd/2, fy - chh/2, cwd, chh);
++      if (sw >= 4) for (let k = 0; k < 3; k++) circ(ctx, x, y0 + pad + (fy0 - y0 - 2*pad)*(k+.5)/3, Math.max(0.8, sw*0.17), hexA(c,.7), null);
++    }
++    box(ctx, x0 + w - pad - mw, y0 + pad, mw, h - 2*pad, 2, hexA(c,.32), null);
++    ctx.strokeStyle = hexA(c,.8); ctx.lineWidth = 1.2;
++    seg(ctx, x0 + w - pad - mw*0.66, fy0, x0 + w - pad - mw*0.66, fy1);
++    seg(ctx, x0 + w - pad - mw*0.33, fy0, x0 + w - pad - mw*0.33, fy1);
++  },
++
++  riser(ctx, o, s, hw, hd, c) {
++    box(ctx, -hw, -hd, 2*hw, 2*hd, 2, hexA(c,.1), hexA(c,.85), 1.4);
++    ctx.save(); rrect(ctx, -hw, -hd, 2*hw, 2*hd, 2); ctx.clip();
++    ctx.strokeStyle = hexA(c,.16); ctx.lineWidth = 1;
++    const step = Math.max(6, 0.25*s);
++    for (let k = -hw - 2*hd; k < hw; k += step) seg(ctx, k, -hd, k + 2*hd, hd);
++    ctx.restore();
++    // 모듈 이음새 (약 1m 간격)
++    ctx.strokeStyle = hexA(c,.4); ctx.lineWidth = 1;
++    const nx = Math.max(1, Math.round(o.w/1.0)), ny = Math.max(1, Math.round(o.d/2.0));
++    for (let i = 1; i < nx; i++) { const x = -hw + 2*hw*i/nx; seg(ctx, x, -hd+1, x, hd-1); }
++    for (let j = 1; j < ny; j++) { const y = -hd + 2*hd*j/ny; seg(ctx, -hw+1, y, hw-1, y); }
++  },
++
++  cable(ctx, o, s, hw, hd, c) {
++    const r = Math.min(hw, hd);
++    box(ctx, -hw, -hd, 2*hw, 2*hd, r, hexA(c,.3), c, 1.1);
++    if (hd >= 4) {
++      ctx.strokeStyle = hexA(c,.6); ctx.lineWidth = 0.8;
++      [-0.45, 0, 0.45].forEach(j => seg(ctx, -hw + r, j*hd, hw - r, j*hd));
++    }
++  },
++
++  custom(ctx, o, s, hw, hd, c) {
++    box(ctx, -hw, -hd, 2*hw, 2*hd, Math.min(5, hw*.3, hd*.3), hexA(c,.25), c, 1.3);
++    const e = (OT[o.type] && OT[o.type].e) || o.e;
++    if (e && hw > 9 && hd > 9) {
++      ctx.font = `${clamp(Math.min(hw, hd), 10, 22)}px serif`;
++      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
++      ctx.fillStyle = '#fff'; ctx.fillText(e, 0, 1);
++    }
++  },
++};
++
++function drawShape(ctx, o, s) {
++  const t = OT[o.type] || {};
++  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
++  (SHAPES[t.draw] || SHAPES.custom)(ctx, o, s, o.w*s/2, o.d*s/2, typeColor(o));
++}
++
++// ─── Palette ─────────────────────────────────────────────────────────────────
++function drawIcon(cv, type) {
++  const t = OT[type], v = t.variants[0];
++  const size = 30, dpr = window.devicePixelRatio || 1;
++  cv.width = size*dpr; cv.height = size*dpr;
++  const ctx = cv.getContext('2d');
++  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
++  const o = {type, w:v.w, d:v.d, h:v.h, rot:t.rot || 0, color:t.color, e:t.e};
++  const th = o.rot*Math.PI/180, c = Math.abs(Math.cos(th)), sn = Math.abs(Math.sin(th));
++  const s = (size - 4) / Math.max(o.w*c + o.d*sn, o.w*sn + o.d*c);
++  ctx.translate(size/2, size/2); ctx.rotate(th);
++  drawShape(ctx, o, s);
++}
++function makePalItem(type) {
+   const t = OT[type];
+-  S.objects.push({id:S.nextId++, type, name:t.name, x, y, z:0,
+-    w:t.w, d:t.d, h:t.h, rot:0, color:t.color, e:t.e, label:''});
+-  updCount(); selObj(S.objects[S.objects.length-1].id); render();
++  const item = document.createElement('div');
++  item.className = 'pal-item';
++  item.draggable = true;
++  item.dataset.type = type;
++  const cv = document.createElement('canvas'); cv.className = 'pi-ico';
++  const nm = document.createElement('div'); nm.className = 'pi-nm'; nm.textContent = t.name;
++  item.append(cv, nm);
++  drawIcon(cv, type);
++  item.addEventListener('dragstart', e => e.dataTransfer.setData('ot', type));
++  item.addEventListener('click', () => togglePlace(type));   // 터치: 탭해서 고른 뒤 무대를 탭
++  return item;
++}
++function buildPalette() {
++  const root = document.getElementById('palSecs');
++  root.innerHTML = '';
++  Object.entries(PAL_ORDER).forEach(([cat, types]) => {
++    const sec = document.createElement('div'); sec.className = 'pal-sec';
++    const hdr = document.createElement('div'); hdr.className = 'pal-hdr'; hdr.textContent = CAT[cat].name;
++    sec.appendChild(hdr);
++    types.forEach(tp => sec.appendChild(makePalItem(tp)));
++    root.appendChild(sec);
++  });
++}
++function togglePlace(type) {
++  if (S.placeType === type) { setMode('select'); return; }
++  setMode('select');
++  S.placeType = type;
++  document.querySelectorAll('.pal-item').forEach(el => el.classList.toggle('placing', el.dataset.type === type));
++  topC.style.cursor = 'copy';
++  document.getElementById('statusMsg').textContent = `무대를 탭하면 ${OT[type].name}을(를) 놓습니다 (Esc 취소)`;
++}
++
++// ─── Objects ─────────────────────────────────────────────────────────────────
++function addObj(type, cx, cy) {
++  const t = OT[type], v = t.variants[0];
++  const o = {id:S.nextId++, type, name:t.name, x:0, y:0, z:0,
++    w:v.w, d:v.d, h:v.h, rot:t.rot || 0, label:'', sub:v.l};
++  if (type.startsWith('ci_')) { o.color = t.color; o.e = t.e; }
++  setCenter(o, snap(cx), snap(cy));   // 탭한 자리에 중심이 오게 합니다
++  clampObj(o);
++  S.objects.push(o);
++  updCount(); selObj(o.id); render();
+ }
+ function selObj(id) { S.sel = id; S.selType = 'obj'; updProps(); }
+ function selPi(id)  { S.sel = id; S.selType = 'pi';  updProps(); }
+ function desel()    { S.sel = null; S.selType = null; updProps(); }
++function getSel()   { return S.selType === 'obj' ? S.objects.find(o => o.id === S.sel) : null; }
+ 
+ function deleteSelected() {
+   if (!S.sel) return;
+@@ -512,17 +830,15 @@ function deleteSelected() {
+   updProps(); updCount(); render();
+ }
+ 
+-function rotateSelected() {
+-  if (!S.sel || S.selType !== 'obj') return;
+-  const o = S.objects.find(o => o.id === S.sel);
+-  if (!o) return;
+-  o.rot = (o.rot + 45) % 360;
+-  if (o.rot % 90 === 0 && o.rot % 180 !== 0) [o.w, o.d] = [o.d, o.w];
+-  updProps(); render();
++function rotateSelected(step) {
++  const o = getSel(); if (!o) return;
++  step = typeof step === 'number' ? step : 45;
++  o.rot = normDeg(Math.round(o.rot / 45) * 45 + step);
++  clampObj(o); updProps(); render();
+ }
+ 
+ function clearAll() {
+-  if (!confirm('모든 오브젝트와 포스트잇을 초기화할까요?')) return;
++  if (!confirm('모든 장비와 포스트잇을 지웁니다. 계속할까요?')) return;
+   S.objects = []; S.postits = []; S.sel = null; S.selType = null;
+   updProps(); updCount(); render();
+ }
+@@ -533,50 +849,91 @@ function updProps() {
+   const sp = document.getElementById('selProps');
+   if (!S.sel) { noSel.style.display=''; sp.style.display='none'; return; }
+   noSel.style.display='none'; sp.style.display='flex';
+-  if (S.selType === 'obj') {
+-    const o = S.objects.find(o => o.id === S.sel); if (!o) return;
+-    document.getElementById('selNm').textContent  = o.e + ' ' + o.name;
+-    document.getElementById('pX').value    = o.x.toFixed(2);
+-    document.getElementById('pY').value    = o.y.toFixed(2);
+-    document.getElementById('pZ').value    = o.z.toFixed(2);
+-    document.getElementById('pSize').textContent = `${o.w}×${o.d}×${o.h}m`;
+-    document.getElementById('pRot').textContent  = o.rot;
++  const isObj = S.selType === 'obj';
++  sp.querySelectorAll('.obj-only').forEach(el => el.style.display = isObj ? '' : 'none');
++  if (isObj) {
++    const o = getSel(); if (!o) return;
++    const t = OT[o.type];
++    document.getElementById('selNm').textContent = o.name;
++    const sel = document.getElementById('pVar');
++    sel.innerHTML = '';
++    (t && t.variants ? t.variants : []).forEach((v, i) => sel.add(new Option(`${v.l}`, i)));
++    sel.add(new Option('직접 입력', -1));
++    sel.value = String(matchVariant(o));
++    const c = objCenter(o);
++    document.getElementById('pW').value   = r2(o.w);
++    document.getElementById('pD').value   = r2(o.d);
++    document.getElementById('pRot').value = Math.round(o.rot);
++    document.getElementById('pX').value   = r2(c.x);
++    document.getElementById('pY').value   = r2(c.y);
++    document.getElementById('pLabelLbl').textContent = '레이블';
+     document.getElementById('pLabel').value = o.label || '';
+   } else {
+     const p = S.postits.find(p => p.id === S.sel); if (!p) return;
+     document.getElementById('selNm').textContent = '📌 ' + (p.nm || '포스트잇');
+-    document.getElementById('pX').value = '';
+-    document.getElementById('pY').value = '';
+-    document.getElementById('pZ').value = '';
+-    document.getElementById('pSize').textContent = '-';
+-    document.getElementById('pRot').textContent  = '-';
++    document.getElementById('pLabelLbl').textContent = '역할';
+     document.getElementById('pLabel').value = p.role || '';
+   }
+ }
++// 입력 중에는 입력칸을 다시 채우지 않고 규격 선택만 맞춥니다
++function syncVariantSel(o) { document.getElementById('pVar').value = String(matchVariant(o)); }
++function syncLiveProps(o) {
++  const c = objCenter(o);
++  document.getElementById('pW').value = r2(o.w);
++  document.getElementById('pD').value = r2(o.d);
++  document.getElementById('pRot').value = Math.round(o.rot);
++  document.getElementById('pX').value = r2(c.x);
++  document.getElementById('pY').value = r2(c.y);
++  syncVariantSel(o);
++}
+ function updateObjPos() {
+-  const o = S.objects.find(o => o.id === S.sel); if (!o) return;
+-  o.x = parseFloat(document.getElementById('pX').value) || 0;
+-  o.y = parseFloat(document.getElementById('pY').value) || 0;
+-  o.z = parseFloat(document.getElementById('pZ').value) || 0;
+-  render();
++  const o = getSel(); if (!o) return;
++  const x = parseFloat(document.getElementById('pX').value), y = parseFloat(document.getElementById('pY').value);
++  if (isNaN(x) || isNaN(y)) return;
++  setCenter(o, x, y); clampObj(o); render();
++}
++function updateObjSize() {
++  const o = getSel(); if (!o) return;
++  const w = parseFloat(document.getElementById('pW').value), d = parseFloat(document.getElementById('pD').value);
++  if (isNaN(w) || isNaN(d) || w < MIN_SIZE || d < MIN_SIZE) return;
++  const c = objCenter(o);
++  o.w = Math.min(w, 50); o.d = Math.min(d, 50);
++  setCenter(o, c.x, c.y); clampObj(o); syncVariantSel(o); render();
++}
++function updateObjRot() {
++  const o = getSel(); if (!o) return;
++  const r = parseFloat(document.getElementById('pRot').value); if (isNaN(r)) return;
++  o.rot = normDeg(r); clampObj(o); render();
++}
++function applyVariant() {
++  const o = getSel(); if (!o) return;
++  const i = parseInt(document.getElementById('pVar').value, 10);
++  const v = OT[o.type] && OT[o.type].variants[i];
++  if (!v) return;
++  const c = objCenter(o);
++  o.w = v.w; o.d = v.d; o.h = v.h; o.sub = v.l;
++  setCenter(o, c.x, c.y); clampObj(o); updProps(); render();
+ }
+ function updateObjLabel() {
+-  if (S.selType === 'obj') {
+-    const o = S.objects.find(o => o.id === S.sel); if (o) { o.label = document.getElementById('pLabel').value; render(); }
+-  }
++  const val = document.getElementById('pLabel').value;
++  if (S.selType === 'obj') { const o = getSel(); if (o) o.label = val; }
++  else { const p = S.postits.find(p => p.id === S.sel); if (p) p.role = val; }
++  render();
+ }
+ function updCount() { document.getElementById('objCount').textContent = S.objects.length + ' items'; }
+ 
+ // ─── Mode ─────────────────────────────────────────────────────────────────────
+ function setMode(m) {
+   S.mode = m;
++  S.placeType = null;
++  document.querySelectorAll('.pal-item.placing').forEach(el => el.classList.remove('placing'));
+   ['sel','pi','con'].forEach(id => document.getElementById('btn-'+id).classList.remove('active'));
+   document.getElementById('btn-' + (m==='select'?'sel': m==='addPostit'?'pi':'con')).classList.add('active');
+   document.getElementById('piModeBtn').classList.toggle('active', m === 'addPostit');
+   topC.style.cursor = m === 'addPostit' ? 'cell' : m === 'connect' ? 'crosshair' : 'default';
+-  const msgs = {select:'준비됨 | 팔레트에서 드래그해 배치, 클릭해 선택',
+-    addPostit:'캔버스를 클릭해 포스트잇을 추가하세요',
+-    connect:'포스트잇 클릭 → 오브젝트 클릭으로 연결선을 추가하세요'};
++  const msgs = {select:'준비됨 | 장비를 골라 무대에 놓고, 선택한 뒤 손잡이로 크기와 방향을 바꿉니다',
++    addPostit:'캔버스를 탭해 포스트잇을 추가합니다',
++    connect:'포스트잇을 탭한 뒤 장비를 탭하면 연결선이 생깁니다'};
+   document.getElementById('statusMsg').textContent = msgs[m] || '';
+   if (m !== 'connect') { S.connectSrc = null; render(); }
+ }
+@@ -589,18 +946,29 @@ function updateStage() {
+   document.getElementById('stageDimTxt').textContent = `${S.stage.w}m × ${S.stage.d}m × ${S.stage.h}m`;
+   render();
+ }
+-function updateGrid() { S.gridSz = parseFloat(document.getElementById('gridSz').value) || 0.5; render(); }
++function updateGrid() { S.gridSz = parseFloat(document.getElementById('gridSz').value) || 0.25; render(); }
+ 
+ // ─── Hit test ────────────────────────────────────────────────────────────────
+-function hitObj(mx, my, L) {
+-  for (let i = S.objects.length-1; i >= 0; i--) {
+-    const o = S.objects[i];
+-    const ox = L.ox + o.x * L.scX, oy = L.oy + o.y * L.scY;
+-    const pw = o.w * L.scX, ph = o.d * L.scY;
+-    if (mx >= ox && mx <= ox+pw && my >= oy && my <= oy+ph) return o.id;
++function drawOrder() {
++  return [...S.objects.filter(o => FLOOR_TYPES.has(o.type)), ...S.objects.filter(o => !FLOOR_TYPES.has(o.type))];
++}
++function hitObj(mx, my, L, touch) {
++  const order = drawOrder(), minH = touch ? 16 : 6;
++  for (let i = order.length-1; i >= 0; i--) {
++    const o = order[i], px = objPx(o, L), p = toLocal(px, mx, my);
++    if (Math.abs(p.x) <= Math.max(px.hw, minH) && Math.abs(p.y) <= Math.max(px.hd, minH)) return o.id;
+   }
+   return null;
+ }
++function hitHandle(o, L, mx, my, touch) {
++  const px = objPx(o, L), p = toLocal(px, mx, my), R = touch ? 22 : 11;
++  // 본체 가운데를 누르면 손잡이보다 이동이 먼저입니다 (작은 장비 대비)
++  if (Math.abs(p.x) < px.hw*0.55 && Math.abs(p.y) < px.hd*0.55) return null;
++  if (Math.hypot(p.x, p.y + px.hd + ROT_OFF) < R) return {kind:'rotate'};
++  for (const sx of [-1, 1]) for (const sy of [-1, 1])
++    if (Math.hypot(p.x - sx*(px.hw+3), p.y - sy*(px.hd+3)) < R) return {kind:'resize', sx, sy};
++  return null;
++}
+ function hitPi(mx, my) {
+   for (let i = S.postits.length-1; i >= 0; i--) {
+     const p = S.postits[i];
+@@ -609,12 +977,21 @@ function hitPi(mx, my) {
+   return null;
+ }
+ 
+-// ─── Mouse events ────────────────────────────────────────────────────────────
+-function onMD(e) {
++// ─── Pointer events ──────────────────────────────────────────────────────────
++function onPD(e) {
++  if (!e.isPrimary) return;
+   e.preventDefault();
+   const r = topC.getBoundingClientRect();
+   const mx = e.clientX - r.left, my = e.clientY - r.top;
+   const L = calcTL(); tL = L;
++  const touch = e.pointerType !== 'mouse';
++
++  if (S.placeType) {
++    const p = toWorld(mx, my, L), type = S.placeType;
++    setMode('select');
++    if (p.x >= 0 && p.x <= S.stage.w && p.y >= 0 && p.y <= S.stage.d) addObj(type, p.x, p.y);
++    return;
++  }
+ 
+   if (S.mode === 'addPostit') {
+     piPos = {cx: mx - PW/2, cy: my - PH/2};
+@@ -629,22 +1006,41 @@ function onMD(e) {
+     const piId = hitPi(mx, my);
+     if (piId !== null && S.connectSrc === null) {
+       S.connectSrc = piId;
+-      document.getElementById('statusMsg').textContent = '오브젝트를 클릭해 연결하세요 (Esc 취소)';
++      document.getElementById('statusMsg').textContent = '연결할 장비를 탭합니다 (Esc 취소)';
+       render(); return;
+     }
+     if (S.connectSrc !== null) {
+-      const oId = hitObj(mx, my, L);
++      const oId = hitObj(mx, my, L, touch);
+       if (oId !== null) {
+         const p = S.postits.find(p => p.id === S.connectSrc);
+         if (p) p.con = oId;
+-        document.getElementById('statusMsg').textContent = '연결됐습니다!';
++        document.getElementById('statusMsg').textContent = '연결했습니다';
+       }
+       S.connectSrc = null; render(); return;
+     }
+     return;
+   }
+ 
+-  // Select mode
++  topC.setPointerCapture(e.pointerId);
++
++  // 선택된 장비의 손잡이
++  const so = getSel();
++  if (so) {
++    const h = hitHandle(so, L, mx, my, touch);
++    if (h) {
++      const c = objCenter(so), th = so.rot*Math.PI/180;
++      DR.active = true; DR.kind = h.kind; DR.id = so.id;
++      if (h.kind === 'resize') {
++        // 반대쪽 모서리를 고정점으로 둡니다
++        const ax = -h.sx*so.w/2, ay = -h.sy*so.d/2;
++        DR.sx = h.sx; DR.sy = h.sy; DR.w0 = so.w; DR.d0 = so.d;
++        DR.ax = c.x + ax*Math.cos(th) - ay*Math.sin(th);
++        DR.ay = c.y + ax*Math.sin(th) + ay*Math.cos(th);
++      }
++      return;
++    }
++  }
++
+   const piId = hitPi(mx, my);
+   if (piId !== null) {
+     selPi(piId);
+@@ -653,7 +1049,7 @@ function onMD(e) {
+     DR.smx=mx; DR.smy=my; DR.ox=p.cx; DR.oy=p.cy;
+     render(); return;
+   }
+-  const oId = hitObj(mx, my, L);
++  const oId = hitObj(mx, my, L, touch);
+   if (oId !== null) {
+     selObj(oId);
+     const o = S.objects.find(o => o.id === oId);
+@@ -664,31 +1060,52 @@ function onMD(e) {
+   desel(); render();
+ }
+ 
+-function onMM(e) {
++function onPM(e) {
++  if (!e.isPrimary) return;
+   const r = topC.getBoundingClientRect();
+   const mx = e.clientX - r.left, my = e.clientY - r.top;
+   const L = calcTL();
+-  const wx = ((mx - L.ox) / L.scX).toFixed(2);
+-  const wy = ((my - L.oy) / L.scY).toFixed(2);
+-  document.getElementById('mousePos').textContent = `x:${wx}m y:${wy}m`;
++  const w = toWorld(mx, my, L);
++  document.getElementById('mousePos').textContent = `x:${w.x.toFixed(2)}m y:${w.y.toFixed(2)}m`;
+ 
+   if (!DR.active) return;
+-  const dx = mx - DR.smx, dy = my - DR.smy;
+   if (DR.kind === 'obj') {
+     const o = S.objects.find(o => o.id === DR.id); if (!o) return;
+-    let nx = snap(DR.ox + dx / L.scX);
+-    let ny = snap(DR.oy + dy / L.scY);
+-    o.x = clamp(nx, 0, S.stage.w - o.w);
+-    o.y = clamp(ny, 0, S.stage.d - o.d);
+-    updProps(); render();
++    o.x = snap(DR.ox + (mx - DR.smx) / L.sc);
++    o.y = snap(DR.oy + (my - DR.smy) / L.sc);
++    clampObj(o); syncLiveProps(o); render();
++  } else if (DR.kind === 'resize') {
++    const o = S.objects.find(o => o.id === DR.id); if (!o) return;
++    const th = o.rot*Math.PI/180, cs = Math.cos(th), sn = Math.sin(th);
++    const vx = w.x - DR.ax, vy = w.y - DR.ay;
++    const lx = vx*cs + vy*sn, ly = -vx*sn + vy*cs;
++    let nw = snapSize(lx*DR.sx), nd = snapSize(ly*DR.sy);
++    if (e.shiftKey) {               // Shift: 비율 유지
++      const k = Math.max(nw/DR.w0, nd/DR.d0);
++      nw = Math.max(MIN_SIZE, DR.w0*k); nd = Math.max(MIN_SIZE, DR.d0*k);
++    }
++    o.w = Math.min(nw, 50); o.d = Math.min(nd, 50);
++    const hx = DR.sx*o.w/2, hy = DR.sy*o.d/2;
++    setCenter(o, DR.ax + hx*cs - hy*sn, DR.ay + hx*sn + hy*cs);
++    clampObj(o); syncLiveProps(o); render();
++  } else if (DR.kind === 'rotate') {
++    const o = S.objects.find(o => o.id === DR.id); if (!o) return;
++    const c = objCenter(o);
++    let a = Math.atan2(w.y - c.y, w.x - c.x) * 180 / Math.PI + 90;
++    if (S.snap && !e.altKey) a = Math.round(a / 15) * 15;   // 15° 단위 (Alt: 자유 회전)
++    o.rot = normDeg(a);
++    clampObj(o); syncLiveProps(o); render();
+   } else if (DR.kind === 'pi') {
+     const p = S.postits.find(p => p.id === DR.id); if (!p) return;
+-    p.cx = DR.ox + dx; p.cy = DR.oy + dy;
++    p.cx = DR.ox + (mx - DR.smx); p.cy = DR.oy + (my - DR.smy);
+     render();
+   }
+ }
+ 
+-function onMU() { DR.active = false; DR.kind = null; }
++function onPU(e) {
++  if (topC.hasPointerCapture && topC.hasPointerCapture(e.pointerId)) topC.releasePointerCapture(e.pointerId);
++  DR.active = false; DR.kind = null;
++}
+ 
+ // ─── Postit modal ────────────────────────────────────────────────────────────
+ function cancelPi() {
+@@ -720,110 +1137,133 @@ function showCustomModal() {
+ function cancelCustom() {
+   document.getElementById('ciModal').classList.add('hidden');
+ }
++function normCustomType(v) {
++  const w = +v.w || 1, d = +v.d || 0.5, h = +v.h || 1;
++  return {name:String(v.name || '커스텀').slice(0, 40), color:/^#[0-9a-f]{6}$/i.test(v.color) ? v.color : '#8e44ad',
++          e:String(v.e || '📦').slice(0, 4), draw:'custom', variants:[{l:'기본', w, d, h}]};
++}
+ function confirmCustom() {
+   const nm = document.getElementById('ci-nm').value.trim();
+   if (!nm) { document.getElementById('ci-nm').focus(); return; }
+-  const icon  = document.getElementById('ci-icon').value.trim() || '📦';
+-  const color = document.getElementById('ci-color').value || '#8e44ad';
+-  const w = parseFloat(document.getElementById('ci-w').value) || 1.0;
+-  const d = parseFloat(document.getElementById('ci-d').value) || 0.5;
+-  const h = parseFloat(document.getElementById('ci-h').value) || 1.0;
+-  document.getElementById('ciModal').classList.add('hidden');
+   const key = 'ci_' + Date.now();
+-  OT[key] = {name: nm, w, d, h, color, e: icon};
+-  mountCustomPalItem(key, nm, color, icon);
++  OT[key] = normCustomType({
++    name:nm,
++    e:document.getElementById('ci-icon').value.trim() || '📦',
++    color:document.getElementById('ci-color').value || '#8e44ad',
++    w:parseFloat(document.getElementById('ci-w').value) || 1.0,
++    d:parseFloat(document.getElementById('ci-d').value) || 0.5,
++    h:parseFloat(document.getElementById('ci-h').value) || 1.0,
++  });
++  document.getElementById('ciModal').classList.add('hidden');
++  mountCustomPalItem(key);
+ }
+-function mountCustomPalItem(key, name, color, icon) {
++function mountCustomPalItem(key) {
+   const sec = document.getElementById('customPalSec');
+   const container = document.getElementById('customPalItems');
+   sec.style.display = '';
+   const wrap = document.createElement('div');
+   wrap.className = 'custom-item-wrap';
+-  const item = document.createElement('div');
+-  item.className = 'pal-item';
+-  item.draggable = true;
+-  item.dataset.type = key;
+-  item.innerHTML = `<div class="pi-dot" style="background:${color}"></div><div class="pi-nm">${icon} ${name}</div>`;
+-  item.addEventListener('dragstart', e => e.dataTransfer.setData('ot', key));
++  const item = makePalItem(key);
+   const del = document.createElement('button');
+   del.className = 'del-ci';
+   del.title = '삭제';
+   del.textContent = '✕';
+-  del.onclick = () => {
++  del.onclick = (ev) => {
++    ev.stopPropagation();
+     delete OT[key];
+     wrap.remove();
+-    if (!document.getElementById('customPalItems').children.length)
+-      sec.style.display = 'none';
++    if (!document.getElementById('customPalItems').children.length) sec.style.display = 'none';
+   };
+-  wrap.appendChild(item);
+-  wrap.appendChild(del);
++  wrap.append(item, del);
+   container.appendChild(wrap);
+ }
+ 
+ // ─── Save / Load / Export ────────────────────────────────────────────────────
+ function saveJSON() {
+-  // 커스텀 타입만 따로 추출
+   const customTypes = {};
+-  Object.entries(OT).forEach(([k, v]) => { if (k.startsWith('ci_')) customTypes[k] = v; });
+-  const d = {stage:S.stage, objects:S.objects, postits:S.postits, customTypes};
++  Object.entries(OT).forEach(([k, v]) => {
++    if (k.startsWith('ci_')) { const b = v.variants[0]; customTypes[k] = {name:v.name, w:b.w, d:b.d, h:b.h, color:v.color, e:v.e}; }
++  });
++  const d = {version:FILE_VERSION, stage:S.stage, objects:S.objects, postits:S.postits, customTypes};
+   const a = document.createElement('a');
+   a.href = URL.createObjectURL(new Blob([JSON.stringify(d,null,2)], {type:'application/json'}));
+   a.download = '새결_무대_' + new Date().toISOString().slice(0,10) + '.json';
+   a.click();
+ }
+ function loadJSON() { document.getElementById('jsonIn').click(); }
++
++// 예전 파일(버전 없음)은 90°~225° 회전 때 가로·세로를 맞바꿔 저장했습니다. 원래 값으로 되돌립니다.
++function migrateObj(o, fromVersion) {
++  const n = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
++  const out = {id:n(o.id), type:String(o.type || ''), name:String(o.name || '장비').slice(0, 40),
++    x:n(o.x), y:n(o.y), z:n(o.z), w:Math.max(MIN_SIZE, n(o.w) || 1), d:Math.max(MIN_SIZE, n(o.d) || 1),
++    h:n(o.h), rot:normDeg(n(o.rot)), label:String(o.label || '').slice(0, 60)};
++  if (o.color) out.color = String(o.color).slice(0, 9);
++  if (o.e) out.e = String(o.e).slice(0, 4);
++  if (o.sub) out.sub = String(o.sub).slice(0, 20);
++  if (fromVersion < 2 && [90, 135, 180, 225].includes(Math.round(out.rot))) {
++    const c = objCenter(out);
++    [out.w, out.d] = [out.d, out.w];
++    setCenter(out, c.x, c.y);
++  }
++  return out;
++}
+ function onJSONLoad(e) {
+   const f = e.target.files[0]; if (!f) return;
+   const rd = new FileReader();
+   rd.onload = ev => {
+     try {
+       const d = JSON.parse(ev.target.result);
+-      Object.assign(S.stage, d.stage || {});
+-      S.objects = d.objects || [];
+-      S.postits = d.postits || [];
+-      S.nextId  = Math.max(...[...S.objects,...S.postits].map(x=>x.id), 0) + 1;
+-      S.sel = null; S.selType = null;
+-      // 커스텀 타입 복원
++      const ver = d.version || 1;
+       if (d.customTypes) {
+-        // 기존 커스텀 팔레트 초기화
+         document.getElementById('customPalItems').innerHTML = '';
+         document.getElementById('customPalSec').style.display = 'none';
++        Object.keys(OT).filter(k => k.startsWith('ci_')).forEach(k => delete OT[k]);
+         Object.entries(d.customTypes).forEach(([k, v]) => {
+-          OT[k] = v;
+-          mountCustomPalItem(k, v.name, v.color, v.e);
++          if (!/^ci_\d+$/.test(k)) return;
++          OT[k] = normCustomType(v);
++          mountCustomPalItem(k);
+         });
+       }
++      Object.assign(S.stage, d.stage || {});
++      S.objects = (d.objects || []).slice(0, 500).map(o => migrateObj(o, ver));
++      S.postits = (d.postits || []).slice(0, 200);
++      S.nextId  = Math.max(...[...S.objects,...S.postits].map(x=>x.id||0), 0) + 1;
++      S.sel = null; S.selType = null;
+       document.getElementById('stageW').value = S.stage.w;
+       document.getElementById('stageD').value = S.stage.d;
+       document.getElementById('stageH').value = S.stage.h;
+       document.getElementById('stageDimTxt').textContent = `${S.stage.w}m × ${S.stage.d}m × ${S.stage.h}m`;
+       updProps(); updCount(); render();
+-    } catch(err) { alert('파일을 읽을 수 없습니다: ' + err.message); }
++    } catch(err) { alert('파일을 읽지 못했습니다. 이 앱에서 저장한 .json 파일인지 확인해 주세요. (' + err.message + ')'); }
+   };
+   rd.readAsText(f); e.target.value = '';
+ }
+ 
+ function exportPNG() {
++  // 선택 표시는 빼고 내보냅니다
++  const keep = [S.sel, S.selType]; S.sel = null; S.selType = null; render();
+   const H_HDR = 70, GAP = 16;
+-  const W = topC.width + GAP * 2;
+-  const H = H_HDR + topC.height + GAP * 2;
++  const W = CW + GAP * 2, H = H_HDR + CH + GAP * 2;
+   const oc = document.createElement('canvas');
+-  oc.width = W; oc.height = H;
++  oc.width = W*DPR; oc.height = H*DPR;
+   const ctx = oc.getContext('2d');
++  ctx.scale(DPR, DPR);
+   ctx.fillStyle = '#0d1117'; ctx.fillRect(0,0,W,H);
+   ctx.fillStyle = '#161b22'; ctx.fillRect(0,0,W,H_HDR);
+-  ctx.fillStyle = '#e94560'; ctx.font = 'bold 24px Segoe UI';
++  ctx.fillStyle = '#e94560'; ctx.font = `bold 24px ${FONT}`;
+   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+   ctx.fillText('새결 Stage Planner', GAP, H_HDR/2 - 7);
+-  ctx.fillStyle = '#8b949e'; ctx.font = '12px Segoe UI';
++  ctx.fillStyle = '#8b949e'; ctx.font = `12px ${FONT}`;
+   ctx.fillText(`무대: ${S.stage.w}×${S.stage.d}×${S.stage.h}m  |  ${new Date().toLocaleDateString('ko-KR')}`, GAP, H_HDR/2 + 14);
+-  ctx.drawImage(topC, GAP, H_HDR + GAP);
++  ctx.drawImage(topC, GAP, H_HDR + GAP, CW, CH);
+   ctx.save(); ctx.globalAlpha = 0.07;
+-  ctx.fillStyle = '#e94560'; ctx.font = 'bold 80px Segoe UI';
++  ctx.fillStyle = '#e94560'; ctx.font = `bold 80px ${FONT}`;
+   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+   ctx.translate(W/2, H/2); ctx.rotate(-Math.PI/6);
+   ctx.fillText('새결', 0, 0);
+   ctx.restore();
++  [S.sel, S.selType] = keep; render();
+   const a = document.createElement('a');
+   a.href = oc.toDataURL('image/png');
+   a.download = '새결_무대_' + new Date().toISOString().slice(0,10) + '.png';
+@@ -833,57 +1273,50 @@ function exportPNG() {
+ // ─── Render: Top View ────────────────────────────────────────────────────────
+ function drawTop() {
+   const ctx = topX, L = calcTL(); tL = L;
+-  const {scX, scY, ox, oy, pw, ph} = L;
+-  ctx.clearRect(0, 0, topC.width, topC.height);
+-  ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, topC.width, topC.height);
++  const {sc, ox, oy, pw, ph} = L;
++  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
++  ctx.clearRect(0, 0, CW, CH);
++  ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, CW, CH);
+ 
+-  // Stage bg
+   ctx.fillStyle = '#1c2333'; ctx.fillRect(ox, oy, pw, ph);
++  drawGrid(ctx, L, S.stage.w, S.stage.d);
+ 
+-  // Grid
+-  drawGrid(ctx, L, topC.width, topC.height, S.stage.w, S.stage.d, false);
+-
+-  // Scale labels X
+-  ctx.fillStyle = '#6e7681'; ctx.font = '10px Segoe UI';
++  // 눈금 (축척이 작으면 2m 간격)
++  const step = sc < 22 ? 2 : 1;
++  ctx.fillStyle = '#6e7681'; ctx.font = `10px ${FONT}`;
+   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+-  for (let x = 0; x <= S.stage.w; x++)
+-    ctx.fillText(x+'m', ox + x*scX, oy - 4);
++  for (let x = 0; x <= S.stage.w + 1e-6; x += step) ctx.fillText(x+'m', ox + x*sc, oy - 4);
+   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+-  for (let y = 0; y <= S.stage.d; y++)
+-    ctx.fillText(y+'m', ox - 5, oy + y*scY);
++  for (let y = 0; y <= S.stage.d + 1e-6; y += step) ctx.fillText(y+'m', ox - 5, oy + y*sc);
+ 
+-  // Stage border
+   ctx.strokeStyle = '#e94560'; ctx.lineWidth = 2;
+   ctx.strokeRect(ox, oy, pw, ph);
+ 
+-  // FRONT label
+-  ctx.fillStyle = '#e94560'; ctx.font = 'bold 11px Segoe UI';
++  ctx.fillStyle = '#e94560'; ctx.font = `bold 11px ${FONT}`;
+   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+-  ctx.fillText('▲ FRONT (객석 방향)', ox+pw/2, oy+ph+8);
++  ctx.fillText('▼ 객석 방향 (FRONT)', ox+pw/2, oy+ph+8);
+ 
+-  // Risers first
+-  S.objects.filter(o=>o.type==='riser').forEach(o => drawTopObj(ctx, o, L));
++  const order = drawOrder();
++  order.forEach(o => drawTopObj(ctx, o, L));
+ 
+-  // Connection lines
++  // 연결선
+   ctx.setLineDash([5,4]);
+   S.postits.forEach(p => {
+     if (!p.con) return;
+     const o = S.objects.find(o=>o.id===p.con); if (!o) return;
++    const px = objPx(o, L);
+     ctx.strokeStyle = 'rgba(241,196,15,0.65)'; ctx.lineWidth = 1.5;
+-    ctx.beginPath();
+-    ctx.moveTo(p.cx + PW/2, p.cy + PH/2);
+-    ctx.lineTo(ox + (o.x + o.w/2)*scX, oy + (o.y + o.d/2)*scY);
+-    ctx.stroke();
++    seg(ctx, p.cx + PW/2, p.cy + PH/2, px.cx, px.cy);
+   });
+   ctx.setLineDash([]);
+ 
+-  // Other objects
+-  S.objects.filter(o=>o.type!=='riser').forEach(o => drawTopObj(ctx, o, L));
++  if (S.showLabels) order.forEach(o => drawLabel(ctx, o, L));
+ 
+-  // Postits
+   S.postits.forEach(p => drawPostitOn(ctx, p));
+ 
+-  // Connect source highlight
++  const so = getSel();
++  if (so) drawSelection(ctx, so, L);
++
+   if (S.connectSrc !== null) {
+     const p = S.postits.find(p=>p.id===S.connectSrc);
+     if (p) {
+@@ -894,54 +1327,61 @@ function drawTop() {
+ }
+ 
+ function drawTopObj(ctx, o, L) {
+-  const {scX, scY, ox, oy} = L;
+-  const cx = ox + o.x*scX, cy = oy + o.y*scY;
+-  const pw = o.w*scX, ph = o.d*scY;
+-  const sel = S.sel === o.id && S.selType === 'obj';
+-
++  const px = objPx(o, L);
+   ctx.save();
+-  ctx.translate(cx + pw/2, cy + ph/2);
+-  ctx.rotate(o.rot * Math.PI / 180);
+-
+-  if (sel) { ctx.shadowColor = '#e94560'; ctx.shadowBlur = 14; }
+-  ctx.fillStyle = o.color;
+-  ctx.globalAlpha = o.type === 'riser' ? 0.35 : 0.88;
+-  rrect(ctx, -pw/2, -ph/2, pw, ph, 5); ctx.fill();
+-  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+-  ctx.strokeStyle = sel ? '#e94560' : 'rgba(255,255,255,0.28)';
+-  ctx.lineWidth = sel ? 2.5 : 1;
+-  rrect(ctx, -pw/2, -ph/2, pw, ph, 5); ctx.stroke();
+-
+-  // Direction arrow
+-  if (pw > 22 && ph > 18) {
+-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+-    ctx.beginPath();
+-    ctx.moveTo(0, ph/2 - 5); ctx.lineTo(-5, ph/2 - 13); ctx.lineTo(5, ph/2 - 13);
+-    ctx.closePath(); ctx.fill();
+-  }
+-
++  ctx.translate(px.cx, px.cy);
++  ctx.rotate(px.th);
++  drawShape(ctx, o, L.sc);
+   ctx.restore();
++}
+ 
+-  // Label
+-  const lbl = trunc(o.label || o.name, 13);
+-  ctx.fillStyle = '#fff';
+-  ctx.font = `bold ${clamp(Math.floor(pw/7), 9, 13)}px Segoe UI`;
+-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+-  ctx.fillText(lbl, cx+pw/2, cy+ph/2 - (pw>28&&ph>20?6:0));
+-
+-  if (pw > 28 && ph > 22) {
+-    ctx.font = `${clamp(Math.floor(pw/5), 10, 16)}px serif`;
+-    ctx.fillText(o.e, cx+pw/2, cy+ph/2 + clamp(ph/5, 6, 14));
++// 이름은 장비 아래에, 회전과 상관없이 똑바로 씁니다
++function drawLabel(ctx, o, L) {
++  const px = objPx(o, L), s = Math.abs(Math.sin(px.th)), c = Math.abs(Math.cos(px.th));
++  const ey = px.hw*s + px.hd*c;
++  const txt = trunc(o.label || o.name, 14);
++  ctx.font = `600 11px ${FONT}`;
++  const tw = ctx.measureText(txt).width;
++  let x = px.cx, y = px.cy + ey + 4;
++  if (o.type === 'riser') {         // 라이저 위에는 다른 장비가 올라가므로 이름을 안쪽 왼쪽 위 구석에 둡니다
++    const ex = px.hw*c + px.hd*s;
++    x = px.cx - ex + tw/2 + 9; y = px.cy - ey + 4;
+   }
++  box(ctx, x - tw/2 - 5, y, tw + 10, 16, 8, 'rgba(13,17,23,.78)', null);
++  ctx.fillStyle = '#c9d1d9'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
++  ctx.fillText(txt, x, y + 8.5);
++}
+ 
+-  if (sel && pw > 40) {
+-    ctx.fillStyle = 'rgba(233,69,96,.9)'; ctx.font = '9px Segoe UI';
+-    ctx.textBaseline = 'top';
+-    ctx.fillText(`${o.w}×${o.d}m`, cx+pw/2, cy+ph+4);
++function drawSelection(ctx, o, L) {
++  const px = objPx(o, L), {hw, hd} = px;
++  ctx.save();
++  ctx.translate(px.cx, px.cy); ctx.rotate(px.th);
++  ctx.setLineDash([5,4]); ctx.strokeStyle = SEL_COLOR; ctx.lineWidth = 1.5;
++  ctx.strokeRect(-hw-3, -hd-3, 2*hw+6, 2*hd+6); ctx.setLineDash([]);
++  // 회전 손잡이
++  ctx.strokeStyle = SEL_COLOR; ctx.lineWidth = 1.5;
++  seg(ctx, 0, -hd-3, 0, -hd-ROT_OFF+7);
++  circ(ctx, 0, -hd-ROT_OFF, 7, '#fff', SEL_COLOR, 2);
++  ctx.strokeStyle = SEL_COLOR; ctx.lineWidth = 1.3;
++  ctx.beginPath(); ctx.arc(0, -hd-ROT_OFF, 3.5, -Math.PI*0.9, Math.PI*0.4); ctx.stroke();
++  // 크기 손잡이
++  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
++    box(ctx, sx*(hw+3) - 5, sy*(hd+3) - 5, 10, 10, 2, '#fff', SEL_COLOR, 1.5);
+   }
++  ctx.restore();
++  // 치수 표시
++  const s = Math.abs(Math.sin(px.th)), c = Math.abs(Math.cos(px.th));
++  const ex = hw*c + hd*s;
++  const txt = `${r2(o.w).toFixed(2)} × ${r2(o.d).toFixed(2)} m · ${Math.round(o.rot)}°`;
++  ctx.font = `600 11px ${FONT}`;
++  const tw = ctx.measureText(txt).width;
++  let tx = px.cx + ex + 14;
++  if (tx + tw + 12 > CW) tx = px.cx - ex - 14 - tw - 10;
++  box(ctx, tx, px.cy - 9, tw + 10, 18, 9, 'rgba(233,69,96,.92)', null);
++  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
++  ctx.fillText(txt, tx + 5, px.cy + 0.5);
+ }
+ 
+-
+ // ─── Postit drawing ──────────────────────────────────────────────────────────
+ function drawPostitOn(ctx, p) {
+   const {cx, cy} = p;
+@@ -950,48 +1390,34 @@ function drawPostitOn(ctx, p) {
+   ctx.fillStyle = p.color;
+   rrect(ctx, cx, cy, PW, PH, 5); ctx.fill();
+   ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+-  // top bar
+   ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(cx, cy, PW, 7);
+-  // border
+   ctx.strokeStyle = sel ? '#e94560' : 'rgba(0,0,0,.18)';
+   ctx.lineWidth = sel ? 2.5 : 1;
+   rrect(ctx, cx, cy, PW, PH, 5); ctx.stroke();
+-  // name
+-  ctx.fillStyle='#111'; ctx.font='bold 12px Segoe UI';
++  ctx.fillStyle='#111'; ctx.font=`bold 12px ${FONT}`;
+   ctx.textAlign='left'; ctx.textBaseline='top';
+   ctx.fillText('📌 ' + trunc(p.nm,11), cx+6, cy+10);
+-  // role
+-  ctx.fillStyle='rgba(0,0,0,.7)'; ctx.font='10px Segoe UI';
++  ctx.fillStyle='rgba(0,0,0,.7)'; ctx.font=`10px ${FONT}`;
+   ctx.fillText(trunc(p.role,18), cx+8, cy+30);
+-  // connected dot
+   if (p.con) {
+     ctx.fillStyle='#27ae60'; ctx.beginPath();
+     ctx.arc(cx+PW-9, cy+9, 4, 0, Math.PI*2); ctx.fill();
+   }
+ }
+ 
+-// ─── Shared grid drawing ─────────────────────────────────────────────────────
+-function drawGrid(ctx, L, cw, ch, stW, stH, isZ) {
+-  const {scX, scY, ox, oy, pw, ph} = L;
+-  // minor grid
+-  ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+-  for (let x=0; x<=stW+.001; x+=S.gridSz) {
+-    const cx2=ox+x*scX; ctx.beginPath(); ctx.moveTo(cx2,oy); ctx.lineTo(cx2,oy+ph); ctx.stroke();
++// ─── Grid ────────────────────────────────────────────────────────────────────
++function drawGrid(ctx, L, stW, stH) {
++  const {sc, ox, oy, pw, ph} = L;
++  if (S.gridSz * sc >= 4) {
++    ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
++    for (let x=0; x<=stW+.001; x+=S.gridSz) seg(ctx, ox+x*sc, oy, ox+x*sc, oy+ph);
++    for (let y=0; y<=stH+.001; y+=S.gridSz) seg(ctx, ox, oy+y*sc, ox+pw, oy+y*sc);
+   }
+-  for (let y=0; y<=stH+.001; y+=S.gridSz) {
+-    const cy2=oy+y*scY; ctx.beginPath(); ctx.moveTo(ox,cy2); ctx.lineTo(ox+pw,cy2); ctx.stroke();
+-  }
+-  // major 1m grid
+   ctx.strokeStyle='rgba(255,255,255,.11)'; ctx.lineWidth=1;
+-  for (let x=0; x<=stW+.001; x++) {
+-    const cx2=ox+x*scX; ctx.beginPath(); ctx.moveTo(cx2,oy); ctx.lineTo(cx2,oy+ph); ctx.stroke();
+-  }
+-  for (let y=0; y<=stH+.001; y++) {
+-    const cy2=oy+y*scY; ctx.beginPath(); ctx.moveTo(ox,cy2); ctx.lineTo(ox+pw,cy2); ctx.stroke();
+-  }
++  for (let x=0; x<=stW+.001; x++) seg(ctx, ox+x*sc, oy, ox+x*sc, oy+ph);
++  for (let y=0; y<=stH+.001; y++) seg(ctx, ox, oy+y*sc, ox+pw, oy+y*sc);
+ }
+ 
+-// ─── Main render ─────────────────────────────────────────────────────────────
+ function render() { drawTop(); }
+ </script>
+ </body>
