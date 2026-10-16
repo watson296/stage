@@ -177,8 +177,14 @@ export interface ArcGeom {
 /** 부푼 거리가 이보다 작으면 직선으로 봅니다(m). */
 export const BULGE_EPS = 1e-6;
 
-/** 기본 허용오차(m). 이보다 촘촘하면 눈으로 구분되지 않습니다. */
-export const TESSELLATE_TOLERANCE_M = 0.05;
+/**
+ * 기본 허용오차(m). 5mm입니다.
+ *
+ * 이 값은 경계상자에도 쓰입니다. 느슨하면 곡선의 끝이 덜 잡혀 무대 가로·세로가
+ * 실제보다 작게 측정되고, 그 값으로 템플릿을 다시 만들면 무대가 조금씩
+ * 줄어듭니다. 그래서 눈에 보이는 수준보다 촘촘하게 잡았습니다.
+ */
+export const TESSELLATE_TOLERANCE_M = 0.005;
 
 /**
  * 변 a→b의 단위 법선. 부푼 거리의 부호 기준입니다.

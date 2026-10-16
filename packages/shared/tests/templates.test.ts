@@ -122,3 +122,29 @@ describe("원호를 쓰는 템플릿", () => {
     }
   });
 });
+
+describe("기본 허용오차로도 크기가 지켜진다", () => {
+  // 앱은 shapeBounds를 기본 허용오차로 부릅니다. 느슨하면 곡선 끝이 덜 잡혀
+  // 무대가 실제보다 작게 측정되고, 그 값으로 템플릿을 다시 만들면 줄어듭니다.
+  it("템플릿을 다섯 번 다시 적용해도 크기가 유지된다", () => {
+    for (const id of ["round", "roundFront"]) {
+      let w = 12;
+      let d = 8;
+      for (let i = 0; i < 5; i++) {
+        const b = shapeBounds(templateById(id)!.build(w, d)); // 기본 허용오차
+        w = b.maxX - b.minX;
+        d = b.maxY - b.minY;
+      }
+      expect(w).toBeCloseTo(12, 1);
+      expect(d).toBeCloseTo(8, 1);
+    }
+  });
+
+  it("기본 허용오차로 잰 크기가 요청값과 0.02m 안에서 맞는다", () => {
+    for (const id of ["round", "roundFront"]) {
+      const b = shapeBounds(templateById(id)!.build(10, 6));
+      expect(b.maxX - b.minX).toBeCloseTo(10, 1);
+      expect(Math.abs(b.maxY - b.minY - 6)).toBeLessThan(0.02);
+    }
+  });
+});

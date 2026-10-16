@@ -355,7 +355,7 @@ export function removeSelectedVertex(): void {
   if (i == null) return;
   const before = currentPlan().stage.points.length;
   if (before <= MIN_VERTICES) {
-    toast("꼭짓점은 세 개까지만 줄일 수 있습니다.", true);
+    toast("꼭짓점은 세 개까지만 줄일 수 있습니다.");
     return;
   }
   store.commit((doc) =>
@@ -514,7 +514,7 @@ export function removeZoneVertex(id: string, index: number): void {
   const z = currentPlan().zones.find((x) => x.id === id);
   if (!z) return;
   if (z.polygon.length <= MIN_VERTICES) {
-    toast("구역 꼭짓점은 세 개까지만 줄일 수 있습니다.", true);
+    toast("구역 꼭짓점은 세 개까지만 줄일 수 있습니다.");
     return;
   }
   store.commit(

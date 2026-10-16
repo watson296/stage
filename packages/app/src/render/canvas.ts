@@ -107,13 +107,16 @@ function objectLabel(o: StageObject): string {
   return o.label || EQUIPMENT[o.type]?.name || "장비";
 }
 
+/** 화면에서 곡선이 각져 보이지 않는 허용오차(화면 px). */
+const CURVE_PX = 0.35;
+
 /**
- * 무대 경로를 만듭니다. 원호는 tessellate가 폅니다. 허용오차를 화면 1.5px로
- * 두어 확대해도 곡선이 매끄럽게 보입니다.
+ * 무대 경로를 만듭니다. 원호는 tessellate가 폅니다. 허용오차를 화면 픽셀로
+ * 환산해 넘기므로 확대해도 곡선이 매끄럽게 보입니다.
  */
 function stagePath(ctx: CanvasRenderingContext2D, cam: Camera, plan: StagePlan): void {
   ctx.beginPath();
-  tessellate(plan.stage, 1.5 / cam.scale).forEach((p, i) => {
+  tessellate(plan.stage, CURVE_PX / cam.scale).forEach((p, i) => {
     const s = worldToScreen(cam, p);
     if (i === 0) ctx.moveTo(s.x, s.y);
     else ctx.lineTo(s.x, s.y);
