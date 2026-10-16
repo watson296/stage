@@ -10,10 +10,26 @@ import {
   hitTest,
   shapeBounds,
   rectStage,
+  arcOnEdge,
+  CAPS,
+  DEFAULT_ZONE_HEIGHT_M,
+  isZoneRectBigEnough,
+  MIN_VERTICES,
+  removeVertex as removeShapeVertex,
+  insertVertex as insertShapeVertex,
+  moveVertex as moveShapeVertex,
+  setBulge,
+  zoneAt,
+  zoneKindInfo,
+  zoneNeedsHeight,
+  zoneRect,
   type Event,
   type StageObject,
   type StagePlan,
   type Note,
+  type Vec2,
+  type Zone,
+  type ZoneKind,
 } from "@stage-planner/shared";
 import { Store } from "./store";
 import { createAutosaver } from "./autosave";
@@ -111,11 +127,18 @@ export function hitObject(wx: number, wy: number): StageObject | null {
   }
   return null;
 }
+/** 구역은 장비 아래에 있으므로 마지막에 찾습니다. 구역 표시를 끄면 잡히지 않습니다. */
+export function hitZone(wx: number, wy: number): Zone | null {
+  if (!showZones.value) return null;
+  return zoneAt(currentPlan().zones, { x: wx, y: wy });
+}
 export function hitAny(wx: number, wy: number): Selection | null {
   const n = hitNote(wx, wy);
   if (n) return { kind: "note", id: n.id };
   const o = hitObject(wx, wy);
   if (o) return { kind: "obj", id: o.id };
+  const z = hitZone(wx, wy);
+  if (z) return { kind: "zone", id: z.id };
   return null;
 }
 
@@ -169,6 +192,8 @@ export function deleteSelected(): void {
         p.notes.forEach((n) => {
           if (n.linkedObjectId === sel.id) n.linkedObjectId = null;
         });
+      } else if (sel.kind === "zone") {
+        p.zones = p.zones.filter((z) => z.id !== sel.id);
       } else {
         p.notes = p.notes.filter((n) => n.id !== sel.id);
       }
@@ -224,6 +249,7 @@ export function clearPlan(): void {
     mutatePlan(d, (p) => {
       p.objects = [];
       p.notes = [];
+      p.zones = [];
     }),
   );
   selection.value = null;
@@ -251,13 +277,15 @@ const HINTS: Record<Mode, string> = {
   addNote: "무대를 탭해 메모를 추가하세요",
   connect: "메모를 탭한 뒤 장비를 탭해 연결하세요",
   place: "무대를 탭해 배치하세요 (Esc로 끝내기)",
-  stage: "무대 꼭짓점을 끌어 모양을 바꾸세요",
+  stage: "꼭짓점을 끌어 모양을, 변 중점을 끌어 곡선을 만드세요(중점 더블탭은 직선)",
+  zone: "무대 위나 밖을 끌어 구역을 만드세요",
 };
 
 export function setMode(m: Mode): void {
   mode.value = m;
   if (m !== "place") placingType.value = null;
   if (m !== "connect") connectSrc.value = null;
+  if (m !== "stage") vertexSel.value = null;
   statusMsg.value = HINTS[m];
 }
 
@@ -306,13 +334,65 @@ export function applyTemplate(id: string): void {
   fit();
 }
 
+/** 무대 모양 모드에서 고른 꼭짓점 번호. 속성 바가 이 값을 읽습니다. */
+export const vertexSel = signal<number | null>(null);
+
 export function moveVertex(index: number, x: number, y: number): void {
   store.mutate((doc) => {
-    const pts = doc.stagePlans[0].stage.points;
-    if (pts[index]) {
-      pts[index] = { x: snapVal(x), y: snapVal(y) };
-    }
+    const p = doc.stagePlans[0];
+    p.stage = moveShapeVertex(p.stage, index, { x: snapVal(x), y: snapVal(y) });
   });
+}
+
+export function selectVertex(index: number | null): void {
+  vertexSel.value = index;
+  if (index != null) statusMsg.value = `꼭짓점 ${index + 1}을 골랐습니다.`;
+}
+
+/** 꼭짓점을 지웁니다. 세 개 아래로는 줄이지 않습니다. */
+export function removeSelectedVertex(): void {
+  const i = vertexSel.value;
+  if (i == null) return;
+  const before = currentPlan().stage.points.length;
+  if (before <= MIN_VERTICES) {
+    toast("꼭짓점은 세 개까지만 줄일 수 있습니다.", true);
+    return;
+  }
+  store.commit((doc) =>
+    mutatePlan(doc, (p) => {
+      p.stage = removeShapeVertex(p.stage, i);
+    }),
+  );
+  vertexSel.value = null;
+  statusMsg.value = "꼭짓점을 지웠습니다.";
+}
+
+/** 꼭짓점 좌표를 숫자로 고칩니다. */
+export function setVertexPos(index: number, x: number, y: number): void {
+  store.mutate((doc) => {
+    const p = doc.stagePlans[0];
+    p.stage = moveShapeVertex(p.stage, index, { x, y });
+  });
+}
+
+/** 변 하나를 호로 만들거나(부푼 거리) 0을 주어 직선으로 되돌립니다. */
+export function setEdgeBulge(edgeIdx: number, bulgeM: number): void {
+  store.mutate((doc) => {
+    const p = doc.stagePlans[0];
+    p.stage = setBulge(p.stage, edgeIdx, bulgeM);
+  });
+}
+
+/** 변 중점 더블탭: 그 변을 직선으로 되돌립니다. */
+export function straightenEdge(edgeIdx: number): void {
+  const had = arcOnEdge(currentPlan().stage, edgeIdx);
+  if (!had) return;
+  store.commit((doc) =>
+    mutatePlan(doc, (p) => {
+      p.stage = setBulge(p.stage, edgeIdx, 0);
+    }),
+  );
+  statusMsg.value = "변을 직선으로 되돌렸습니다.";
 }
 
 export function setAudienceDir(dir: "front" | "all"): void {
@@ -365,4 +445,106 @@ export function setVariant(id: string, variantId: string): void {
     o.x = cx - v.w / 2;
     o.y = cy - v.d / 2;
   });
+}
+
+// ── 구역 ─────────────────────────────────────────────────────────────────────
+/** 구역을 그릴지. 화면 상태라 문서에 저장하지 않습니다. */
+export const showZones = signal(true);
+/** 다음에 만들 구역의 종류. */
+export const zoneKind = signal<ZoneKind>("riser");
+
+/** 끌어 만든 사각형으로 구역을 추가합니다. 너무 작으면 버립니다. */
+export function addZone(a: Vec2, b: Vec2): void {
+  if (!isZoneRectBigEnough(a, b)) {
+    statusMsg.value = "구역이 너무 작습니다. 더 크게 끌어 주세요.";
+    return;
+  }
+  const kind = zoneKind.value;
+  const id = newId("zone");
+  store.commit((doc) =>
+    mutatePlan(doc, (p) => {
+      p.zones.push(zoneRect(id, kind, snapPt(a), snapPt(b)));
+    }),
+  );
+  selection.value = { kind: "zone", id };
+  statusMsg.value = `${zoneKindInfo(kind).name} 구역을 만들었습니다.`;
+}
+
+function snapPt(p: Vec2): Vec2 {
+  return { x: snapVal(p.x), y: snapVal(p.y) };
+}
+
+function withZone(id: string, fn: (z: Zone) => void): (doc: Event) => void {
+  return (doc) =>
+    mutatePlan(doc, (p) => {
+      const z = p.zones.find((x) => x.id === id);
+      if (z) fn(z);
+    });
+}
+
+export function moveZoneVertex(id: string, index: number, x: number, y: number): void {
+  store.mutate(
+    withZone(id, (z) => {
+      if (z.polygon[index]) z.polygon[index] = { x: snapVal(x), y: snapVal(y) };
+    }),
+  );
+}
+
+/** 변 중점을 탭해 꼭짓점을 더합니다(터치에서 점을 하나씩 찍지 않게). */
+export function insertZoneVertex(id: string, edgeIdx: number): void {
+  const z = currentPlan().zones.find((x) => x.id === id);
+  if (!z) return;
+  const n = z.polygon.length;
+  if (n >= CAPS.MAX_ZONE_POINTS) {
+    toast("구역 꼭짓점이 너무 많습니다.", true);
+    return;
+  }
+  const a = z.polygon[edgeIdx];
+  const b = z.polygon[(edgeIdx + 1) % n];
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  store.commit(
+    withZone(id, (zz) => {
+      zz.polygon = insertShapeVertex({ points: zz.polygon }, edgeIdx, mid).points;
+    }),
+  );
+  statusMsg.value = "구역에 꼭짓점을 더했습니다.";
+}
+
+export function removeZoneVertex(id: string, index: number): void {
+  const z = currentPlan().zones.find((x) => x.id === id);
+  if (!z) return;
+  if (z.polygon.length <= MIN_VERTICES) {
+    toast("구역 꼭짓점은 세 개까지만 줄일 수 있습니다.", true);
+    return;
+  }
+  store.commit(
+    withZone(id, (zz) => {
+      zz.polygon = removeShapeVertex({ points: zz.polygon }, index).points;
+    }),
+  );
+}
+
+export function setZoneName(id: string, name: string): void {
+  store.mutate(withZone(id, (z) => (z.name = name)));
+}
+
+export function setZoneKind(id: string, kind: ZoneKind): void {
+  store.commit(
+    withZone(id, (z) => {
+      z.kind = kind;
+      // 높이는 라이저·단차만 가집니다. 다른 종류로 바꾸면 지웁니다.
+      if (zoneNeedsHeight(kind)) z.heightM = z.heightM ?? DEFAULT_ZONE_HEIGHT_M;
+      else delete z.heightM;
+    }),
+  );
+}
+
+export function setZoneHeight(id: string, heightM: number): void {
+  store.mutate(
+    withZone(id, (z) => {
+      if (zoneNeedsHeight(z.kind)) {
+        z.heightM = clamp(heightM, 0, CAPS.ZONE_HEIGHT_MAX);
+      }
+    }),
+  );
 }

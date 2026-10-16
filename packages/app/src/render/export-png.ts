@@ -1,4 +1,11 @@
-import { polygonBounds, type StagePlan } from "@stage-planner/shared";
+import {
+  rotatedAABB,
+  shapeBounds,
+  unionBounds,
+  zoneBounds,
+  type AABB,
+  type StagePlan,
+} from "@stage-planner/shared";
 import { draw } from "./canvas";
 import type { Camera } from "./camera";
 
@@ -19,7 +26,7 @@ export function renderPlanCanvas(
   gridSz: number,
   logo: HTMLImageElement | null,
 ): HTMLCanvasElement | null {
-  const b = polygonBounds(plan.stage.points);
+  const b = planBounds(plan);
   const stageW = Math.max(0.5, b.maxX - b.minX);
   const stageD = Math.max(0.5, b.maxY - b.minY);
   const scale = Math.min(1400 / stageW, 900 / stageD);
@@ -41,11 +48,16 @@ export function renderPlanCanvas(
     ox: MARGIN - b.minX * scale,
     oy: HEADER_H + MARGIN - b.minY * scale,
   };
+  // 선택 표시와 편집 손잡이는 넣지 않습니다(selection null + mode select).
+  // 구역은 넣습니다.
   draw(ctx, finalW, finalH, cam, plan, {
     gridSz,
     selection: null,
     connectSrc: null,
     mode: "select",
+    showZones: true,
+    zoneDraft: null,
+    vertexSel: null,
   });
 
   // 머리말
@@ -60,8 +72,9 @@ export function renderPlanCanvas(
   ctx.fillText(eventName || "새결 Stage Planner", MARGIN, HEADER_H / 2 - 8);
   ctx.fillStyle = "#56667A";
   ctx.font = "13px system-ui, sans-serif";
+  const sb = shapeBounds(plan.stage);
   ctx.fillText(
-    `${plan.name} · 무대 ${round1(stageW)}×${round1(stageD)}m · ${new Date().toLocaleDateString("ko-KR")}`,
+    `${plan.name} · 무대 ${round1(sb.maxX - sb.minX)}×${round1(sb.maxY - sb.minY)}m · ${new Date().toLocaleDateString("ko-KR")}`,
     MARGIN,
     HEADER_H / 2 + 14,
   );
@@ -136,6 +149,20 @@ export function exportPDF(
   // 이미지가 자리를 잡은 뒤에 인쇄 대화상자를 엽니다.
   if (img.complete) window.print();
   else img.onload = () => window.print();
+}
+
+/**
+ * 도면에 담을 범위. 무대 다각형(원호 반영)에 구역과 무대 밖 장비를 더합니다.
+ * FOH 위치나 객석 구역을 그려 두면 도면에 함께 나옵니다.
+ */
+function planBounds(plan: StagePlan): AABB {
+  const boxes: AABB[] = [shapeBounds(plan.stage)];
+  for (const z of plan.zones) if (z.polygon.length >= 3) boxes.push(zoneBounds(z));
+  for (const o of plan.objects) {
+    if (o.onStage) continue;
+    boxes.push(rotatedAABB({ x: o.x, y: o.y, w: o.w, d: o.d, rot: o.rot }));
+  }
+  return unionBounds(boxes);
 }
 
 function round1(v: number): number {

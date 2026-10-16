@@ -79,7 +79,11 @@ export function App() {
         S.store.redo();
         return;
       }
-      if (e.key === "Delete" || e.key === "Backspace") S.deleteSelected();
+      if (e.key === "Delete" || e.key === "Backspace") {
+        // 무대 모양 모드에서는 고른 꼭짓점을 지웁니다.
+        if (S.mode.value === "stage") S.removeSelectedVertex();
+        else S.deleteSelected();
+      }
       if (e.key === "r" || e.key === "R") S.rotateSelected();
     };
     document.addEventListener("keydown", onKey);

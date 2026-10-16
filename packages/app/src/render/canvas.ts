@@ -7,25 +7,36 @@ import {
   NOTE_H_M,
   shapeBounds,
   tessellate,
+  zoneCentroid,
+  zoneKindInfo,
+  zoneLabel,
   type StagePlan,
   type StageObject,
   type Note,
+  type Vec2,
+  type Zone,
 } from "@stage-planner/shared";
 import { worldToScreen, type Camera } from "./camera";
-import { objectHandles, stageHandles, HANDLE_R } from "./handles";
+import { objectHandles, stageHandles, zoneHandles, HANDLE_R } from "./handles";
 
 export interface Selection {
-  kind: "obj" | "note";
+  kind: "obj" | "note" | "zone";
   id: string;
 }
 
-export type Mode = "select" | "addNote" | "connect" | "place" | "stage";
+export type Mode = "select" | "addNote" | "connect" | "place" | "stage" | "zone";
 
 export interface RenderUI {
   gridSz: number;
   selection: Selection | null;
   connectSrc: string | null;
   mode: Mode;
+  /** 구역을 그릴지. 도면이 복잡해지면 끕니다. */
+  showZones: boolean;
+  /** 구역을 끌어 만드는 중인 사각형(월드 m). */
+  zoneDraft?: { a: Vec2; b: Vec2; color: string } | null;
+  /** 무대 모양 모드에서 고른 꼭짓점 번호. */
+  vertexSel?: number | null;
 }
 
 // 색 (3단계에서 디자인 토큰으로 교체). 지금은 새결 네이비 계열의 중립 팔레트.
@@ -151,6 +162,12 @@ export function draw(
     plan.audienceDir === "all" ? "사방 객석" : "▲ FRONT (객석 방향)",
     front.x, front.y + 8,
   );
+
+  // 구역은 무대 바닥 위, 장비 아래에 그립니다.
+  if (ui.showZones) {
+    for (const z of plan.zones) drawZone(ctx, cam, z, ui);
+    if (ui.zoneDraft) drawZoneDraft(ctx, cam, ui.zoneDraft);
+  }
 
   for (const o of plan.objects) if (o.type === "riser") drawObject(ctx, cam, o, ui);
 
@@ -334,6 +351,73 @@ function drawNote(
   }
 }
 
+/**
+ * 구역 하나. 채움은 옅게 하고 테두리와 이름으로 구분합니다. 색만으로 구분하지
+ * 않으려고 이름을 늘 함께 적습니다. 무대 밖 구역은 점선 테두리입니다.
+ */
+function drawZone(
+  ctx: CanvasRenderingContext2D, cam: Camera, z: Zone, ui: RenderUI,
+): void {
+  if (z.polygon.length < 3) return;
+  const info = zoneKindInfo(z.kind);
+  const sel = ui.selection?.kind === "zone" && ui.selection.id === z.id;
+
+  ctx.beginPath();
+  z.polygon.forEach((p, i) => {
+    const s = worldToScreen(cam, p);
+    if (i === 0) ctx.moveTo(s.x, s.y);
+    else ctx.lineTo(s.x, s.y);
+  });
+  ctx.closePath();
+
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = info.color;
+  ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = sel ? C.sel : info.color;
+  ctx.lineWidth = sel ? 2.5 : 1.5;
+  if (!info.onStage) ctx.setLineDash([6, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 이름(라이저·단차는 높이까지)을 무게중심에 적습니다.
+  const c = worldToScreen(cam, zoneCentroid(z));
+  const label = trunc(zoneLabel(z), 20);
+  ctx.font = "600 11px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.strokeText(label, c.x, c.y);
+  ctx.fillStyle = info.color;
+  ctx.fillText(label, c.x, c.y);
+}
+
+/** 끌어 만드는 중인 구역 미리보기. */
+function drawZoneDraft(
+  ctx: CanvasRenderingContext2D, cam: Camera,
+  draft: { a: Vec2; b: Vec2; color: string },
+): void {
+  const a = worldToScreen(cam, draft.a);
+  const b = worldToScreen(cam, draft.b);
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  const w = Math.abs(b.x - a.x);
+  const h = Math.abs(b.y - a.y);
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = draft.color;
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+  ctx.strokeStyle = draft.color;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 4]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+}
+
 /** 무대 꼭짓점 손잡이와 선택한 장비의 크기·회전 손잡이를 그립니다. */
 function drawHandles(
   ctx: CanvasRenderingContext2D, cam: Camera, plan: StagePlan, ui: RenderUI,
@@ -348,8 +432,37 @@ function drawHandles(
     ctx.stroke();
   };
 
+  // 변 중점 손잡이는 꼭짓점보다 작고 속이 비어 있어 구별됩니다.
+  const ring = (x: number, y: number, r: number, color: string) => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  };
+
   if (ui.mode === "stage") {
-    for (const h of stageHandles(plan, cam)) dot(h.sx, h.sy, HANDLE_R, C.sel);
+    const selV = ui.vertexSel;
+    for (const h of stageHandles(plan.stage, cam)) {
+      if (h.kind.startsWith("e")) ring(h.sx, h.sy, HANDLE_R - 2, C.sel);
+      else {
+        const i = Number(h.kind.slice(1));
+        dot(h.sx, h.sy, i === selV ? HANDLE_R + 2 : HANDLE_R, i === selV ? C.front : C.sel);
+      }
+    }
+    return;
+  }
+
+  if (ui.selection?.kind === "zone") {
+    const z = plan.zones.find((x) => x.id === ui.selection!.id);
+    if (!z) return;
+    const color = zoneKindInfo(z.kind).color;
+    for (const h of zoneHandles(z, cam)) {
+      if (h.kind.startsWith("e")) ring(h.sx, h.sy, HANDLE_R - 2, color);
+      else dot(h.sx, h.sy, HANDLE_R, color);
+    }
     return;
   }
 

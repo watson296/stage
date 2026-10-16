@@ -1,4 +1,12 @@
-import { EQUIPMENT } from "@stage-planner/shared";
+import {
+  EQUIPMENT,
+  MIN_VERTICES,
+  ZONE_KINDS,
+  riserUnder,
+  zoneLabel,
+  zoneNeedsHeight,
+  type ZoneKind,
+} from "@stage-planner/shared";
 import * as S from "../state/appState";
 
 /** 편집을 되돌리기 한 단계로 묶습니다(focus에서 시작, blur에서 확정). */
@@ -27,6 +35,12 @@ function editHandlers(apply: (v: string) => void) {
 export function Props() {
   S.docVersion.value;
   const sel = S.selection.value;
+  const plan = S.currentPlan();
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+
+  // 무대 모양 모드에서는 고른 꼭짓점을 보여 줍니다.
+  if (S.mode.value === "stage") return <VertexProps />;
+
   if (!sel) {
     return (
       <div class="props">
@@ -34,13 +48,13 @@ export function Props() {
       </div>
     );
   }
-  const plan = S.currentPlan();
-  const r1 = (v: number) => Math.round(v * 10) / 10;
 
   if (sel.kind === "obj") {
     const o = plan.objects.find((x) => x.id === sel.id);
     if (!o) return <div class="props" />;
     const t = EQUIPMENT[o.type];
+    // 장비 중심이 올라가 있는 높이 구역. 표시만 하고 z는 그대로 둡니다.
+    const riser = riserUnder(plan.zones, { x: o.x + o.w / 2, y: o.y + o.d / 2 });
     const setNum = (f: "x" | "y") => (v: string) =>
       S.store.mutate((d) => {
         const t2 = d.stagePlans[0].objects.find((x) => x.id === sel.id);
@@ -89,7 +103,38 @@ export function Props() {
               })
             } /> 무대 밖
         </label>
+        {riser && <span class="pg" id="riserInfo">{zoneLabel(riser)} 위</span>}
         <button class="btn" onClick={S.rotateSelected}>회전</button>
+        <button class="btn btn-danger" onClick={S.deleteSelected}>삭제</button>
+      </div>
+    );
+  }
+
+  if (sel.kind === "zone") {
+    const z = plan.zones.find((x) => x.id === sel.id);
+    if (!z) return <div class="props" />;
+    return (
+      <div class="props">
+        <span class="selnm">{zoneLabel(z)}</span>
+        <span class="pg">이름:
+          <input class="inp wide" type="text" id="zoneName" value={z.name}
+            {...editHandlers((v) => S.setZoneName(z.id, v))} />
+        </span>
+        <span class="pg">종류:
+          <select class="inp wide" id="zoneKind" value={z.kind}
+            onChange={(e) =>
+              S.setZoneKind(z.id, (e.target as HTMLSelectElement).value as ZoneKind)}>
+            {ZONE_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}
+          </select>
+        </span>
+        {zoneNeedsHeight(z.kind) && (
+          <span class="pg">높이:
+            <input class="inp" type="number" step="0.05" min="0" max="10" id="zoneHeight"
+              value={z.heightM ?? 0}
+              {...editHandlers((v) => S.setZoneHeight(z.id, parseFloat(v) || 0))} />m
+          </span>
+        )}
+        <span class="pg">꼭짓점 {z.polygon.length}개 · 변 중점을 탭해 더합니다</span>
         <button class="btn btn-danger" onClick={S.deleteSelected}>삭제</button>
       </div>
     );
@@ -119,6 +164,42 @@ export function Props() {
           )} />
       </span>
       <button class="btn btn-danger" onClick={S.deleteSelected}>삭제</button>
+    </div>
+  );
+}
+
+/** 무대 모양 모드의 속성 바. 고른 꼭짓점의 좌표를 고치고 지웁니다. */
+function VertexProps() {
+  S.docVersion.value;
+  const i = S.vertexSel.value;
+  const pts = S.currentPlan().stage.points;
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+
+  if (i == null || !pts[i]) {
+    return (
+      <div class="props">
+        <span class="none">
+          꼭짓점을 탭하면 좌표가 보입니다 · 변 중점을 끌면 곡선이 됩니다
+        </span>
+      </div>
+    );
+  }
+  const p = pts[i];
+  const tooFew = pts.length <= MIN_VERTICES;
+  return (
+    <div class="props">
+      <span class="selnm">꼭짓점 {i + 1} / {pts.length}</span>
+      <span class="pg">X:
+        <input class="inp" type="number" step="0.1" id="vx" value={r1(p.x)}
+          {...editHandlers((v) => S.setVertexPos(i, parseFloat(v) || 0, pts[i].y))} />m
+      </span>
+      <span class="pg">Y:
+        <input class="inp" type="number" step="0.1" id="vy" value={r1(p.y)}
+          {...editHandlers((v) => S.setVertexPos(i, pts[i].x, parseFloat(v) || 0))} />m
+      </span>
+      <button class="btn btn-danger" id="btnDelVertex" disabled={tooFew}
+        onClick={S.removeSelectedVertex}>삭제</button>
+      {tooFew && <span class="pg">꼭짓점은 세 개까지만 줄입니다</span>}
     </div>
   );
 }

@@ -7,3 +7,5 @@ export * from "./model/schema";
 export * from "./protocol/messages";
 export * from "./draw/shapes";
 export * from "./model/templates";
+export * from "./model/shapeEdit";
+export * from "./model/zones";

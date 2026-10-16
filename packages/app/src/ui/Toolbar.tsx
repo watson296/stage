@@ -1,3 +1,4 @@
+import { ZONE_KINDS, type ZoneKind } from "@stage-planner/shared";
 import * as S from "../state/appState";
 
 export function Toolbar() {
@@ -14,7 +15,9 @@ export function Toolbar() {
       <button class={"btn" + (m === "connect" ? " active" : "")}
         onClick={() => S.setMode("connect")}>연결</button>
       <button class={"btn" + (m === "stage" ? " active" : "")}
-        onClick={() => S.setMode(m === "stage" ? "select" : "stage")}>무대 모양</button>
+        id="mStage" onClick={() => S.setMode(m === "stage" ? "select" : "stage")}>무대 모양</button>
+      <button class={"btn" + (m === "zone" ? " active" : "")}
+        id="mZone" onClick={() => S.setMode(m === "zone" ? "select" : "zone")}>구역</button>
       <div class="sep" />
       <label>템플릿
         <select class="inp" value="" onChange={(e) => {
@@ -32,6 +35,19 @@ export function Toolbar() {
           <option value="front">앞쪽</option>
           <option value="all">사방</option>
         </select>
+      </label>
+      {m === "zone" && (
+        <label>구역 종류
+          <select class="inp" id="selZoneKind" value={S.zoneKind.value}
+            onChange={(e) =>
+              (S.zoneKind.value = (e.target as HTMLSelectElement).value as ZoneKind)}>
+            {ZONE_KINDS.map((z) => <option key={z.kind} value={z.kind}>{z.name}</option>)}
+          </select>
+        </label>
+      )}
+      <label>
+        <input type="checkbox" id="chkZones" checked={S.showZones.value}
+          onChange={(e) => (S.showZones.value = (e.target as HTMLInputElement).checked)} /> 구역 표시
       </label>
       <div class="sep" />
       <button class="btn" id="btnRotate" onClick={S.rotateSelected}>회전 45°</button>
