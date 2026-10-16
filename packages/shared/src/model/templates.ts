@@ -1,6 +1,7 @@
 // 무대 모양 템플릿. 가로·깊이를 받아 다각형 꼭짓점을 만듭니다.
 // 만든 뒤에는 모두 똑같이 꼭짓점을 끌어 고칠 수 있습니다(SPEC 7장).
 import type { StageShape, Vec2, AudienceDir } from "./types";
+import { edgeNormal, shapeBounds } from "./geometry";
 
 export type TemplateId =
   | "rect" | "roundFront" | "thrust" | "round" | "center" | "lshape" | "wings";
@@ -15,17 +16,48 @@ export interface StageTemplate {
 
 const P = (x: number, y: number): Vec2 => ({ x, y });
 
-/** 원호를 선분으로 잘게 나눠 다각형으로 만듭니다. */
-function arc(
-  cx: number, cy: number, rx: number, ry: number,
-  from: number, to: number, steps: number,
-): Vec2[] {
-  const out: Vec2[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = from + ((to - from) * i) / steps;
-    out.push(P(cx + Math.cos(t) * rx, cy + Math.sin(t) * ry));
+/**
+ * 두 꼭짓점을 지나는 원호가 세 번째 점도 지나게 하는 부푼 거리를 구합니다.
+ * 타원의 45° 점을 세 번째 점으로 넣어 원형 무대를 만듭니다.
+ */
+function bulgeThrough(a: Vec2, b: Vec2, through: Vec2): number {
+  const n = edgeNormal(a, b);
+  const mx = (a.x + b.x) / 2;
+  const my = (a.y + b.y) / 2;
+  // 법선 방향으로 얼마나 떨어져 있는지가 곧 부푼 거리입니다.
+  return (through.x - mx) * n.x + (through.y - my) * n.y;
+}
+
+/**
+ * 부푼 거리를 한 배율로 줄여 모양이 요청한 w × d 안에 들어오게 맞춥니다.
+ *
+ * 원호 넷으로 타원을 흉내면 짧은 축 쪽이 몇 %씩 넘칩니다. 그대로 두면
+ * stageSize가 요청값보다 커지고, 템플릿을 다시 적용할 때마다 무대가 조금씩
+ * 자라납니다. 이분법으로 넘치지 않는 가장 큰 배율을 찾습니다.
+ */
+function fitBulges(shape: StageShape, w: number, d: number): StageShape {
+  const arcs = shape.arcs;
+  if (!arcs?.length) return shape;
+  const TOL = 1e-4;
+  const fits = (f: number): boolean => {
+    const b = shapeBounds(
+      { points: shape.points, arcs: arcs.map((a) => ({ ...a, bulgeM: a.bulgeM * f })) },
+      0.0005,
+    );
+    return b.minX >= -TOL && b.minY >= -TOL && b.maxX <= w + TOL && b.maxY <= d + TOL;
+  };
+  if (fits(1)) return shape;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) lo = mid;
+    else hi = mid;
   }
-  return out;
+  return {
+    points: shape.points,
+    arcs: arcs.map((a) => ({ ...a, bulgeM: a.bulgeM * lo })),
+  };
 }
 
 export const TEMPLATES: StageTemplate[] = [
@@ -40,14 +72,11 @@ export const TEMPLATES: StageTemplate[] = [
     name: "앞이 둥근 무대",
     audienceDir: "front",
     build: (w, d) => {
-      // 뒤는 직선, 앞(+y)은 바깥으로 부푼 호
+      // 뒤와 옆은 직선, 앞 변(변 2)만 바깥으로 부푼 호 하나입니다.
       const straight = d * 0.65;
       return {
-        points: [
-          P(0, 0), P(w, 0), P(w, straight),
-          ...arc(w / 2, straight, w / 2, d - straight, 0, Math.PI, 16).slice(1, -1),
-          P(0, straight),
-        ],
+        points: [P(0, 0), P(w, 0), P(w, straight), P(0, straight)],
+        arcs: [{ fromIdx: 2, toIdx: 3, bulgeM: d - straight }],
       };
     },
   },
@@ -72,7 +101,32 @@ export const TEMPLATES: StageTemplate[] = [
     id: "round",
     name: "원형",
     audienceDir: "all",
-    build: (w, d) => ({ points: arc(w / 2, d / 2, w / 2, d / 2, 0, Math.PI * 2, 24).slice(0, -1) }),
+    build: (w, d) => {
+      // 축 끝점 네 개와 사분원 네 개. w === d면 정확한 원이 되고,
+      // w ≠ d면 타원을 원호 네 개로 근사합니다(SPEC 7.2).
+      const rx = w / 2;
+      const ry = d / 2;
+      const points = [P(rx, 0), P(w, ry), P(rx, d), P(0, ry)];
+      const k = Math.SQRT1_2; // cos 45° = sin 45°
+      const corner = [
+        P(rx + rx * k, ry - ry * k),
+        P(rx + rx * k, ry + ry * k),
+        P(rx - rx * k, ry + ry * k),
+        P(rx - rx * k, ry - ry * k),
+      ];
+      return fitBulges(
+        {
+          points,
+          arcs: points.map((_, i) => ({
+            fromIdx: i,
+            toIdx: (i + 1) % points.length,
+            bulgeM: bulgeThrough(points[i], points[(i + 1) % points.length], corner[i]),
+          })),
+        },
+        w,
+        d,
+      );
+    },
   },
   {
     id: "center",
