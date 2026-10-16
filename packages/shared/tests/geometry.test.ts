@@ -2,10 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   hitTest,
   rotatedAABB,
-  clampToStage,
+  clampToShape,
   rectCenter,
   type OrientedRect,
 } from "../src/model/geometry";
+import { rectStage } from "../src/model/types";
+
+/** 사각 무대는 다각형으로도 같은 결과를 내야 합니다. */
+const RECT_8x6 = rectStage(8, 6);
 
 describe("hitTest", () => {
   it("회전하지 않은 사각형: 안/밖 판정", () => {
@@ -52,17 +56,17 @@ describe("rotatedAABB", () => {
   });
 });
 
-describe("clampToStage", () => {
+describe("clampToShape (사각 무대)", () => {
   it("무대 밖으로 나간 사각형을 안으로 들인다", () => {
     const r: OrientedRect = { x: -1, y: -2, w: 2, d: 2, rot: 0 };
-    const c = clampToStage(r, 8, 6);
+    const c = clampToShape(r, RECT_8x6);
     expect(c.x).toBeCloseTo(0, 6);
     expect(c.y).toBeCloseTo(0, 6);
   });
 
   it("오른쪽/아래로 넘친 사각형을 경계에 맞춘다", () => {
     const r: OrientedRect = { x: 7.5, y: 5.5, w: 2, d: 2, rot: 0 };
-    const c = clampToStage(r, 8, 6);
+    const c = clampToShape(r, RECT_8x6);
     expect(c.x).toBeCloseTo(6, 6);
     expect(c.y).toBeCloseTo(4, 6);
   });
@@ -70,7 +74,7 @@ describe("clampToStage", () => {
   it("회전한 사각형은 회전된 경계상자 기준으로 가둔다", () => {
     // 4×1 사각형을 90° 회전하면 세로로 길어져(경계상자 1×4) y로 4m 필요.
     const r: OrientedRect = { x: -2, y: -0.5, w: 4, d: 1, rot: 90 };
-    const c = clampToStage(r, 8, 6);
+    const c = clampToShape(r, RECT_8x6);
     const box = rotatedAABB({ ...r, x: c.x, y: c.y });
     expect(box.minX).toBeGreaterThanOrEqual(-1e-6);
     expect(box.minY).toBeGreaterThanOrEqual(-1e-6);

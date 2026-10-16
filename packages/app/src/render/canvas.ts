@@ -5,7 +5,8 @@ import {
   equipmentDraw,
   NOTE_W_M,
   NOTE_H_M,
-  polygonBounds,
+  shapeBounds,
+  tessellate,
   type StagePlan,
   type StageObject,
   type Note,
@@ -95,10 +96,13 @@ function objectLabel(o: StageObject): string {
   return o.label || EQUIPMENT[o.type]?.name || "장비";
 }
 
-/** 무대 다각형 경로를 만듭니다. */
+/**
+ * 무대 경로를 만듭니다. 원호는 tessellate가 폅니다. 허용오차를 화면 1.5px로
+ * 두어 확대해도 곡선이 매끄럽게 보입니다.
+ */
 function stagePath(ctx: CanvasRenderingContext2D, cam: Camera, plan: StagePlan): void {
   ctx.beginPath();
-  plan.stage.points.forEach((p, i) => {
+  tessellate(plan.stage, 1.5 / cam.scale).forEach((p, i) => {
     const s = worldToScreen(cam, p);
     if (i === 0) ctx.moveTo(s.x, s.y);
     else ctx.lineTo(s.x, s.y);
@@ -118,7 +122,7 @@ export function draw(
   ctx.fillStyle = C.page;
   ctx.fillRect(0, 0, cssW, cssH);
 
-  const b = polygonBounds(plan.stage.points);
+  const b = shapeBounds(plan.stage);
 
   ctx.fillStyle = C.stage;
   stagePath(ctx, cam, plan);

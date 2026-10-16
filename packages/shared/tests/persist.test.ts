@@ -54,7 +54,7 @@ describe("v2 검증", () => {
 
   it("꼭짓점을 가리키지 못하는 원호는 버린다", () => {
     const raw = base();
-    (raw.stagePlans[0].stage as Record<string, unknown>).arcs = [
+    (raw.stagePlans[0].stage as unknown as Record<string, unknown>).arcs = [
       { fromIdx: 0, toIdx: 1, bulgeM: 1 },   // 정상
       { fromIdx: 9, toIdx: 10, bulgeM: 1 },  // 범위 밖
       { fromIdx: 1, toIdx: 3, bulgeM: 1 },   // 이웃이 아님
@@ -69,7 +69,7 @@ describe("v2 검증", () => {
 
   it("마지막 변의 원호(n-1 → 0)는 남긴다", () => {
     const raw = base();
-    (raw.stagePlans[0].stage as Record<string, unknown>).arcs = [
+    (raw.stagePlans[0].stage as unknown as Record<string, unknown>).arcs = [
       { fromIdx: 3, toIdx: 0, bulgeM: -0.8 },
     ];
     const { event } = migrate(raw);

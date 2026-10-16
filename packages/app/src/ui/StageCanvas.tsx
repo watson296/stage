@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "preact/hooks";
-import { clampToStage, type Vec2 } from "@stage-planner/shared";
+import { clampToShape, type Vec2 } from "@stage-planner/shared";
 import { attachGestures } from "../input/pointer";
 import {
   objectHandles, stageHandles, hitHandle, resizeByCorner,
@@ -71,7 +71,6 @@ export function StageCanvas() {
         }
         const dr = drag.current;
         if (!dr) return;
-        const size = S.stageSize();
         S.store.mutate((doc) => {
           const p = doc.stagePlans[0];
           if (dr.kind === "obj") {
@@ -80,7 +79,7 @@ export function StageCanvas() {
             const nx = S.snapVal(w.x - dr.dx);
             const ny = S.snapVal(w.y - dr.dy);
             if (o.onStage) {
-              const c = clampToStage({ x: nx, y: ny, w: o.w, d: o.d, rot: o.rot }, size.w, size.d);
+              const c = clampToShape({ x: nx, y: ny, w: o.w, d: o.d, rot: o.rot }, p.stage);
               o.x = c.x;
               o.y = c.y;
             } else {

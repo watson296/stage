@@ -6,9 +6,9 @@ import {
   NOTE_H_M,
   VIEW_MARGIN,
   clamp,
-  clampToStage,
+  clampToShape,
   hitTest,
-  polygonBounds,
+  shapeBounds,
   rectStage,
   type Event,
   type StageObject,
@@ -64,7 +64,7 @@ export function currentPlan(): StagePlan {
   return store.get().stagePlans[0];
 }
 export function stageSize(): { w: number; d: number } {
-  const b = polygonBounds(currentPlan().stage.points);
+  const b = shapeBounds(currentPlan().stage);
   return { w: b.maxX - b.minX, d: b.maxY - b.minY };
 }
 
@@ -129,10 +129,9 @@ function mutatePlan(d: Event, fn: (p: StagePlan) => void): void {
 export function placeObject(key: string, wx: number, wy: number): void {
   const t = resolveType(key);
   if (!t) return;
-  const { w: sw, d: sd } = stageSize();
   let x = snapVal(wx - t.w / 2);
   let y = snapVal(wy - t.d / 2);
-  const c = clampToStage({ x, y, w: t.w, d: t.d, rot: t.rot }, sw, sd);
+  const c = clampToShape({ x, y, w: t.w, d: t.d, rot: t.rot }, currentPlan().stage);
   x = c.x;
   y = c.y;
   const id = newId("obj");
