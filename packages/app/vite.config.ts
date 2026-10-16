@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: "es2020",
-    assetsInlineLimit: mode === "single" ? 262144 : 0,
+    assetsInlineLimit: mode === "single" ? 1572864 : 0,
     outDir: "dist",
     emptyOutDir: true,
   },

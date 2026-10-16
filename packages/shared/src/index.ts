@@ -5,3 +5,5 @@ export * from "./model/constants";
 export * from "./model/migrate";
 export * from "./model/schema";
 export * from "./protocol/messages";
+export * from "./draw/shapes";
+export * from "./model/templates";

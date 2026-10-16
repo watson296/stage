@@ -13,6 +13,26 @@ export function Toolbar() {
         id="mNote" onClick={() => S.setMode("addNote")}>메모</button>
       <button class={"btn" + (m === "connect" ? " active" : "")}
         onClick={() => S.setMode("connect")}>연결</button>
+      <button class={"btn" + (m === "stage" ? " active" : "")}
+        onClick={() => S.setMode(m === "stage" ? "select" : "stage")}>무대 모양</button>
+      <div class="sep" />
+      <label>템플릿
+        <select class="inp" value="" onChange={(e) => {
+          const v = (e.target as HTMLSelectElement).value;
+          if (v) S.applyTemplate(v);
+          (e.target as HTMLSelectElement).value = "";
+        }}>
+          <option value="">고르기</option>
+          {S.TEMPLATE_LIST.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </label>
+      <label>객석
+        <select class="inp" value={S.currentPlan().audienceDir === "all" ? "all" : "front"}
+          onChange={(e) => S.setAudienceDir((e.target as HTMLSelectElement).value as "front" | "all")}>
+          <option value="front">앞쪽</option>
+          <option value="all">사방</option>
+        </select>
+      </label>
       <div class="sep" />
       <button class="btn" id="btnRotate" onClick={S.rotateSelected}>회전 45°</button>
       <button class="btn btn-danger" id="btnDelete" onClick={S.deleteSelected}>삭제</button>
@@ -22,11 +42,13 @@ export function Toolbar() {
       <div class="sep" />
       <label>무대 가로
         <input class="inp" type="number" min="1" max="50" step="0.5" value={r1(size.w)}
-          onChange={(e) => S.setStageSize(parseFloat((e.target as HTMLInputElement).value) || 8, size.d)} />
+          onChange={(e) =>
+            S.setStageSize(parseFloat((e.target as HTMLInputElement).value) || 8, S.stageSize().d)} />
       </label>
       <label>세로
         <input class="inp" type="number" min="1" max="50" step="0.5" value={r1(size.d)}
-          onChange={(e) => S.setStageSize(size.w, parseFloat((e.target as HTMLInputElement).value) || 6)} />
+          onChange={(e) =>
+            S.setStageSize(S.stageSize().w, parseFloat((e.target as HTMLInputElement).value) || 6)} />
       </label>
       <label>격자
         <select class="inp" value={String(S.gridSz.value)}

@@ -1,5 +1,8 @@
 import {
   EQUIPMENT,
+  drawShape,
+  equipmentColor,
+  equipmentDraw,
   NOTE_W_M,
   NOTE_H_M,
   polygonBounds,
@@ -8,13 +11,14 @@ import {
   type Note,
 } from "@stage-planner/shared";
 import { worldToScreen, type Camera } from "./camera";
+import { objectHandles, stageHandles, HANDLE_R } from "./handles";
 
 export interface Selection {
   kind: "obj" | "note";
   id: string;
 }
 
-export type Mode = "select" | "addNote" | "connect" | "place";
+export type Mode = "select" | "addNote" | "connect" | "place" | "stage";
 
 export interface RenderUI {
   gridSz: number;
@@ -85,13 +89,10 @@ function round1(v: number): number {
 }
 
 export function objectColor(o: StageObject): string {
-  return o.color ?? EQUIPMENT[o.type]?.color ?? "#888888";
+  return equipmentColor(o.type) ?? o.color ?? "#888888";
 }
 function objectLabel(o: StageObject): string {
   return o.label || EQUIPMENT[o.type]?.name || "장비";
-}
-function objectEmoji(o: StageObject): string {
-  return EQUIPMENT[o.type]?.emoji ?? "";
 }
 
 /** 무대 다각형 경로를 만듭니다. */
@@ -168,6 +169,8 @@ export function draw(
   for (const o of plan.objects) if (o.type !== "riser") drawObject(ctx, cam, o, ui);
   for (const n of plan.notes) drawNote(ctx, cam, n, ui);
 
+  drawHandles(ctx, cam, plan, ui);
+
   if (ui.connectSrc != null) {
     const n = plan.notes.find((x) => x.id === ui.connectSrc);
     if (n) {
@@ -240,49 +243,41 @@ function drawObject(
     ctx.shadowColor = C.sel;
     ctx.shadowBlur = 12;
   }
-  ctx.fillStyle = objectColor(o);
-  ctx.globalAlpha = o.type === "riser" ? 0.35 : o.onStage ? 0.9 : 0.6;
-  roundRect(ctx, -wpx / 2, -hpx / 2, wpx, hpx, 5);
-  ctx.fill();
+  ctx.globalAlpha = o.onStage ? 1 : 0.6;
+  drawShape(ctx, o, equipmentDraw(o.type), cam.scale, objectColor(o));
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = sel ? C.sel : C.objStroke;
-  ctx.lineWidth = sel ? 2.5 : 1;
-  // 무대 밖 장비는 점선 테두리로 구분합니다.
-  if (!o.onStage) ctx.setLineDash([4, 3]);
-  roundRect(ctx, -wpx / 2, -hpx / 2, wpx, hpx, 5);
-  ctx.stroke();
-  ctx.setLineDash([]);
 
-  // 정면(+d) 방향 화살표
-  if (wpx > 22 && hpx > 18) {
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.beginPath();
-    ctx.moveTo(0, hpx / 2 - 5);
-    ctx.lineTo(-5, hpx / 2 - 13);
-    ctx.lineTo(5, hpx / 2 - 13);
-    ctx.closePath();
-    ctx.fill();
+  // 선택했거나 무대 밖이면 테두리로 표시합니다.
+  if (sel || !o.onStage) {
+    ctx.strokeStyle = sel ? C.sel : C.objStroke;
+    ctx.lineWidth = sel ? 2 : 1;
+    if (!o.onStage) ctx.setLineDash([4, 3]);
+    roundRect(ctx, -wpx / 2, -hpx / 2, wpx, hpx, 4);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
   ctx.restore();
 
-  const label = trunc(objectLabel(o), 13);
-  ctx.fillStyle = "#fff";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const big = wpx > 28 && hpx > 20;
-  ctx.font = `600 ${clamp(Math.floor(wpx / 7), 9, 13)}px system-ui, sans-serif`;
-  ctx.fillText(label, center.x, center.y - (big ? 6 : 0));
-  const emoji = objectEmoji(o);
-  if (big && emoji) {
-    ctx.font = `${clamp(Math.floor(wpx / 5), 10, 16)}px serif`;
-    ctx.fillText(emoji, center.x, center.y + clamp(hpx / 5, 6, 14));
+  // 라벨은 그림 아래에 수평으로 적습니다(그림을 가리지 않게).
+  if (wpx > 26 || hpx > 26) {
+    const label = trunc(objectLabel(o), 13);
+    ctx.font = `600 ${clamp(Math.floor(Math.min(wpx, hpx) / 3.2), 9, 12)}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    const ty = center.y + Math.max(wpx, hpx) / 2 + 3;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.strokeText(label, center.x, ty);
+    ctx.fillStyle = C.border;
+    ctx.fillText(label, center.x, ty);
   }
   if (sel && wpx > 40) {
     ctx.fillStyle = C.sel;
     ctx.font = "9px system-ui, sans-serif";
-    ctx.textBaseline = "top";
-    ctx.fillText(`${round1(o.w)}×${round1(o.d)}m`, center.x, center.y + hpx / 2 + 4);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(`${round1(o.w)}×${round1(o.d)}m`, center.x, center.y - Math.max(wpx, hpx) / 2 - 3);
   }
 }
 
@@ -332,5 +327,52 @@ function drawNote(
       Math.max(3, w * 0.035), 0, Math.PI * 2,
     );
     ctx.fill();
+  }
+}
+
+/** 무대 꼭짓점 손잡이와 선택한 장비의 크기·회전 손잡이를 그립니다. */
+function drawHandles(
+  ctx: CanvasRenderingContext2D, cam: Camera, plan: StagePlan, ui: RenderUI,
+): void {
+  const dot = (x: number, y: number, r: number, fill: string) => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  };
+
+  if (ui.mode === "stage") {
+    for (const h of stageHandles(plan, cam)) dot(h.sx, h.sy, HANDLE_R, C.sel);
+    return;
+  }
+
+  if (ui.selection?.kind !== "obj") return;
+  const o = plan.objects.find((x) => x.id === ui.selection!.id);
+  if (!o) return;
+  const hs = objectHandles(o, cam);
+  const rot = hs.find((h) => h.kind === "rot");
+  const top = hs.find((h) => h.kind === "nw");
+  const top2 = hs.find((h) => h.kind === "ne");
+  if (rot && top && top2) {
+    // 회전 손잡이까지 선을 그어 무엇인지 알 수 있게 합니다.
+    ctx.strokeStyle = C.sel;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo((top.sx + top2.sx) / 2, (top.sy + top2.sy) / 2);
+    ctx.lineTo(rot.sx, rot.sy);
+    ctx.stroke();
+  }
+  for (const h of hs) {
+    dot(h.sx, h.sy, h.kind === "rot" ? HANDLE_R + 1 : HANDLE_R, h.kind === "rot" ? "#ffffff" : C.sel);
+    if (h.kind === "rot") {
+      ctx.beginPath();
+      ctx.arc(h.sx, h.sy, HANDLE_R - 2, 0.6, 5.0);
+      ctx.strokeStyle = C.sel;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   }
 }

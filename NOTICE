@@ -28,6 +28,17 @@ License 2.0의 적용 대상이 아닙니다.
 위 조건에 따른 새결의 저작권·상표 표시입니다.
 
 ─────────────────────────────────────────────────────────────────────
+포함된 제3자 자산
+─────────────────────────────────────────────────────────────────────
+
+Pretendard
+  packages/app/src/assets/fonts/Pretendard-*.subset.woff2
+  Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard.
+  SIL Open Font License, Version 1.1 로 배포됩니다.
+  https://github.com/orioncactus/pretendard
+  한글 완성형과 영문·숫자만 담은 서브셋을 오프라인 사용을 위해 포함합니다.
+
+─────────────────────────────────────────────────────────────────────
 This product includes brand assets (the Saegyeol logo and the
 "새결 / SAEGYEOL" name and wordmark) that are trademarks of Team Saegyeol
 and are NOT licensed under the Apache License 2.0. Forks and

@@ -10,12 +10,15 @@ const MARGIN = 60;
 const HEADER_H = 72;
 const FOOTER_H = 64;
 
-export function exportPNG(
+/**
+ * 배치도를 고해상도 캔버스로 그립니다. PNG 저장과 PDF 인쇄가 같이 씁니다.
+ */
+export function renderPlanCanvas(
   plan: StagePlan,
   eventName: string,
   gridSz: number,
   logo: HTMLImageElement | null,
-): void {
+): HTMLCanvasElement | null {
   const b = polygonBounds(plan.stage.points);
   const stageW = Math.max(0.5, b.maxX - b.minX);
   const stageD = Math.max(0.5, b.maxY - b.minY);
@@ -29,7 +32,7 @@ export function exportPNG(
   canvas.width = finalW * EXPORT_SCALE;
   canvas.height = finalH * EXPORT_SCALE;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return null;
   ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0);
 
   // 무대 왼쪽 위가 여백 안쪽에 오도록 카메라를 둡니다.
@@ -84,10 +87,55 @@ export function exportPNG(
   ctx.font = "11px system-ui, sans-serif";
   ctx.fillText("Stage Planner로 만든 무대 배치도", tx, cy + 10);
 
+  return canvas;
+}
+
+export function exportPNG(
+  plan: StagePlan,
+  eventName: string,
+  gridSz: number,
+  logo: HTMLImageElement | null,
+): void {
+  const canvas = renderPlanCanvas(plan, eventName, gridSz, logo);
+  if (!canvas) return;
   const a = document.createElement("a");
   a.href = canvas.toDataURL("image/png");
   a.download = "새결_무대_" + new Date().toISOString().slice(0, 10) + ".png";
   a.click();
+}
+
+/**
+ * 브라우저 인쇄로 PDF를 만듭니다(라이브러리 없음).
+ * 인쇄용 시트에 같은 그림을 넣고 window.print()를 부릅니다.
+ * 사용자는 인쇄 대화상자에서 "PDF로 저장"을 고릅니다.
+ */
+export function exportPDF(
+  plan: StagePlan,
+  eventName: string,
+  gridSz: number,
+  logo: HTMLImageElement | null,
+): void {
+  const canvas = renderPlanCanvas(plan, eventName, gridSz, logo);
+  if (!canvas) return;
+  let sheet = document.getElementById("print-sheet");
+  if (!sheet) {
+    sheet = document.createElement("div");
+    sheet.id = "print-sheet";
+    document.body.appendChild(sheet);
+  }
+  sheet.replaceChildren();
+  const img = document.createElement("img");
+  img.src = canvas.toDataURL("image/png");
+  img.alt = `${eventName} ${plan.name} 무대 배치도`;
+  sheet.appendChild(img);
+  const done = () => {
+    sheet?.replaceChildren();
+    window.removeEventListener("afterprint", done);
+  };
+  window.addEventListener("afterprint", done);
+  // 이미지가 자리를 잡은 뒤에 인쇄 대화상자를 엽니다.
+  if (img.complete) window.print();
+  else img.onload = () => window.print();
 }
 
 function round1(v: number): number {

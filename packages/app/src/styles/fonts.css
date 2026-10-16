@@ -1,0 +1,26 @@
+/* Pretendard 서브셋(한글 완성형 + 영문·숫자)을 앱에 포함합니다.
+   인터넷 없이 동작해야 하므로 외부에서 내려받지 않습니다.
+   가변 폰트 전체(약 2MB) 대신 필요한 굵기 셋만 씁니다(각 약 267KB).
+   글꼴 라이선스는 SIL Open Font License 1.1입니다. NOTICE를 보세요. */
+
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/Pretendard-Regular.subset.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../assets/fonts/Pretendard-SemiBold.subset.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Pretendard";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/Pretendard-Bold.subset.woff2") format("woff2");
+}

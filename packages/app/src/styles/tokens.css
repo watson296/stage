@@ -22,7 +22,7 @@
   --danger: var(--sg-signal);
 
   /* type */
-  --font-sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo",
+  --font-sans: Pretendard, -apple-system, "Apple SD Gothic Neo",
     "Noto Sans KR", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 

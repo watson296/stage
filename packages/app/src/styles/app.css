@@ -37,7 +37,7 @@ body {
 }
 .hdr .title {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--sg-navy);
   letter-spacing: 0.2px;
 }
@@ -446,5 +446,35 @@ select.inp {
   }
   .hdr .sub {
     display: none;
+  }
+}
+
+/* 인쇄(PDF 내보내기): 화면 UI를 숨기고 배치도만 한 장으로 냅니다. */
+#print-sheet {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #ffffff;
+  }
+  #app {
+    display: none !important;
+  }
+  #print-sheet {
+    display: block;
+  }
+  #print-sheet img {
+    width: 100%;
+    height: auto;
+    max-height: 100vh;
+    object-fit: contain;
   }
 }

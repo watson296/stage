@@ -1,6 +1,7 @@
 import { signal } from "@preact/signals";
 import {
   EQUIPMENT,
+  equipmentColor,
   NOTE_W_M,
   NOTE_H_M,
   VIEW_MARGIN,
@@ -79,7 +80,10 @@ export function resolveType(
   const t = EQUIPMENT[key];
   if (t) {
     const v = t.variants[0];
-    return { name: t.name, w: v.w, d: v.d, h: v.h, color: t.color, rot: t.rot ?? 0 };
+    return {
+      name: t.name, w: v.w, d: v.d, h: v.h,
+      color: equipmentColor(key) ?? "#9aa8ba", rot: t.rot ?? 0,
+    };
   }
   const c = store.get().customEquipment[key];
   if (c) return { name: c.name, w: c.w, d: c.d, h: c.h, color: c.color, rot: 0 };
@@ -248,6 +252,7 @@ const HINTS: Record<Mode, string> = {
   addNote: "무대를 탭해 메모를 추가하세요",
   connect: "메모를 탭한 뒤 장비를 탭해 연결하세요",
   place: "무대를 탭해 배치하세요 (Esc로 끝내기)",
+  stage: "무대 꼭짓점을 끌어 모양을 바꾸세요",
 };
 
 export function setMode(m: Mode): void {
@@ -284,3 +289,81 @@ export const pendingNote = signal<{ x: number; y: number } | null>(null);
 export const showCustomModal = signal(false);
 export const showInfoModal = signal(false);
 export const noteColor = signal("#f1c40f");
+
+// ── 무대 모양 ────────────────────────────────────────────────────────────────
+import { TEMPLATES, templateById } from "@stage-planner/shared";
+
+/** 템플릿을 현재 무대 크기에 맞춰 적용합니다. */
+export function applyTemplate(id: string): void {
+  const t = templateById(id);
+  if (!t) return;
+  const { w, d } = stageSize();
+  store.commit((doc) =>
+    mutatePlan(doc, (p) => {
+      p.stage = t.build(w, d);
+      p.audienceDir = t.audienceDir;
+    }),
+  );
+  fit();
+}
+
+export function moveVertex(index: number, x: number, y: number): void {
+  store.mutate((doc) => {
+    const pts = doc.stagePlans[0].stage.points;
+    if (pts[index]) {
+      pts[index] = { x: snapVal(x), y: snapVal(y) };
+    }
+  });
+}
+
+export function setAudienceDir(dir: "front" | "all"): void {
+  store.commit((doc) =>
+    mutatePlan(doc, (p) => {
+      p.audienceDir = dir;
+    }),
+  );
+}
+
+export const TEMPLATE_LIST = TEMPLATES;
+
+// ── 장비 크기·회전·규격 ─────────────────────────────────────────────────────
+export const MIN_SIZE_M = 0.1;
+
+export function resizeObject(
+  id: string, box: { x: number; y: number; w: number; d: number },
+): void {
+  store.mutate((doc) => {
+    const o = doc.stagePlans[0].objects.find((x) => x.id === id);
+    if (!o) return;
+    o.x = box.x;
+    o.y = box.y;
+    o.w = box.w;
+    o.d = box.d;
+    o.variantId = undefined; // 손으로 크기를 바꾸면 규격에서 벗어납니다
+  });
+}
+
+export function setObjectRotation(id: string, deg: number): void {
+  store.mutate((doc) => {
+    const o = doc.stagePlans[0].objects.find((x) => x.id === id);
+    if (o) o.rot = deg;
+  });
+}
+
+/** 규격을 고르면 치수를 그 값으로 맞춥니다(중심은 그대로). */
+export function setVariant(id: string, variantId: string): void {
+  store.commit((doc) => {
+    const o = doc.stagePlans[0].objects.find((x) => x.id === id);
+    if (!o) return;
+    const v = EQUIPMENT[o.type]?.variants.find((x) => x.id === variantId);
+    if (!v) return;
+    const cx = o.x + o.w / 2;
+    const cy = o.y + o.d / 2;
+    o.w = v.w;
+    o.d = v.d;
+    o.h = v.h;
+    o.variantId = v.id;
+    o.x = cx - v.w / 2;
+    o.y = cy - v.d / 2;
+  });
+}

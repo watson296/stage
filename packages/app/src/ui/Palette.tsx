@@ -1,4 +1,4 @@
-import { EQUIPMENT, PALETTE_GROUPS } from "@stage-planner/shared";
+import { EQUIPMENT, PALETTE_GROUPS, CATEGORIES } from "@stage-planner/shared";
 import * as S from "../state/appState";
 
 /** 팔레트에서 캔버스로 끌어놓기(HTML5 DnD 아님) + 탭 선택 */
@@ -73,7 +73,9 @@ export function Palette() {
             <div class="pal-hdr">{g.title}</div>
             {g.types.map((k) => {
               const t = EQUIPMENT[k];
-              return t ? <Item key={k} keyName={k} name={t.name} color={t.color} /> : null;
+              return t ? (
+                <Item key={k} keyName={k} name={t.name} color={CATEGORIES[t.cat].color} />
+              ) : null;
             })}
           </div>
         ))}

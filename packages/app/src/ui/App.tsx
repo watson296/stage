@@ -5,7 +5,7 @@ import { Palette } from "./Palette";
 import { Toolbar } from "./Toolbar";
 import { Props } from "./Props";
 import { NoteModal, CustomModal, InfoModal, Toasts } from "./Modals";
-import { exportPNG } from "../render/export-png";
+import { exportPNG, exportPDF } from "../render/export-png";
 import { downloadJSON, parseEvent, pickJSONFile } from "../io/json";
 import { loadEvent } from "../state/autosave";
 import symbolUrl from "../../../../assets/brand/saegyeol-symbol.png";
@@ -108,6 +108,10 @@ export function App() {
           <button class="btn btn-accent" id="btnExport"
             onClick={() => exportPNG(S.currentPlan(), S.currentEvent().name, S.gridSz.value, footerLogo)}>
             PNG 내보내기
+          </button>
+          <button class="btn" id="btnPdf"
+            onClick={() => exportPDF(S.currentPlan(), S.currentEvent().name, S.gridSz.value, footerLogo)}>
+            PDF 내보내기
           </button>
           <button class="btn" onClick={() => (S.showInfoModal.value = true)}>정보</button>
         </div>

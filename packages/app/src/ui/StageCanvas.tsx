@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "preact/hooks";
 import { clampToStage, type Vec2 } from "@stage-planner/shared";
 import { attachGestures } from "../input/pointer";
+import {
+  objectHandles, stageHandles, hitHandle, resizeByCorner,
+  rotationFromPointer, type Handle,
+} from "../render/handles";
 import { draw, syncCanvasSize } from "../render/canvas";
 import { screenToWorld, zoomAt, pan } from "../render/camera";
 import * as S from "../state/appState";
@@ -8,6 +12,7 @@ import * as S from "../state/appState";
 export function StageCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ kind: "obj" | "note"; id: string; dx: number; dy: number } | null>(null);
+  const handleDrag = useRef<{ handle: Handle; id: string } | null>(null);
   const firstFit = useRef(false);
 
   // 이 값들이 바뀌면 컴포넌트가 다시 렌더되고, 아래 effect가 다시 그립니다.
@@ -24,8 +29,17 @@ export function StageCanvas() {
 
     const detach = attachGestures(canvas, {
       toWorld: (x, y) => screenToWorld(S.camera.value, x, y),
-      grabbableAt: (w) => S.mode.value === "select" && S.hitAny(w.x, w.y) !== null,
+      grabbableAt: (w) => {
+        if (currentHandles().length && handleAt(w) !== null) return true;
+        return S.mode.value === "select" && S.hitAny(w.x, w.y) !== null;
+      },
       onGrabStart: (w) => {
+        const h = handleAt(w);
+        if (h) {
+          S.store.beginTxn();
+          handleDrag.current = { handle: h, id: S.selection.value?.id ?? "" };
+          return;
+        }
         const sel = S.hitAny(w.x, w.y);
         if (!sel) return;
         S.selection.value = sel;
@@ -39,6 +53,22 @@ export function StageCanvas() {
         }
       },
       onGrabMove: (w) => {
+        const hd = handleDrag.current;
+        if (hd) {
+          const kind = hd.handle.kind;
+          if (kind.startsWith("v")) {
+            S.moveVertex(Number(kind.slice(1)), w.x, w.y);
+          } else {
+            const o = S.currentPlan().objects.find((x) => x.id === hd.id);
+            if (!o) return;
+            if (kind === "rot") {
+              S.setObjectRotation(o.id, rotationFromPointer(o, w, S.snap.value ? 15 : null));
+            } else {
+              S.resizeObject(o.id, resizeByCorner(o, kind, w, S.MIN_SIZE_M, S.snapVal));
+            }
+          }
+          return;
+        }
         const dr = drag.current;
         if (!dr) return;
         const size = S.stageSize();
@@ -66,10 +96,11 @@ export function StageCanvas() {
         });
       },
       onGrabEnd: (moved) => {
-        if (drag.current) {
+        if (handleDrag.current || drag.current) {
           if (moved) S.store.commitTxn();
           else S.store.cancelTxn();
         }
+        handleDrag.current = null;
         drag.current = null;
       },
       onTap: (w: Vec2) => {
@@ -118,6 +149,21 @@ export function StageCanvas() {
       ro.disconnect();
     };
   }, []);
+
+  function currentHandles(): Handle[] {
+    const cam = S.camera.value;
+    if (S.mode.value === "stage") return stageHandles(S.currentPlan(), cam);
+    const sel = S.selection.value;
+    if (sel?.kind !== "obj") return [];
+    const o = S.currentPlan().objects.find((x) => x.id === sel.id);
+    return o ? objectHandles(o, cam) : [];
+  }
+
+  /** 월드 좌표를 화면으로 되돌려 손잡이를 찾습니다. */
+  function handleAt(w: { x: number; y: number }): Handle | null {
+    const cam = S.camera.value;
+    return hitHandle(currentHandles(), cam.ox + w.x * cam.scale, cam.oy + w.y * cam.scale);
+  }
 
   function render(): void {
     const canvas = ref.current;

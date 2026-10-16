@@ -11,8 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@preact/signals": "^2.11.3",
     "@stage-planner/shared": "*",
-    "preact": "^11.0.1",
-    "@preact/signals": "^2.11.3"
+    "preact": "^11.0.1"
   }
 }
