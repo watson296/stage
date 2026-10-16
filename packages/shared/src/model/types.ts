@@ -44,7 +44,26 @@ export interface ArcSegment {
   bulgeM: number;
 }
 
-export type ZoneKind = "riser" | "level" | "audience" | "foh" | "exit" | "backstage";
+/** 구역 종류. riser·level은 무대 위 높이 구역, 나머지는 무대 밖 동선입니다. */
+export const ZONE_KIND_IDS = [
+  "riser",
+  "level",
+  "audience",
+  "foh",
+  "exit",
+  "backstage",
+] as const;
+
+export type ZoneKind = (typeof ZONE_KIND_IDS)[number];
+
+export function isZoneKind(v: unknown): v is ZoneKind {
+  return typeof v === "string" && (ZONE_KIND_IDS as readonly string[]).includes(v);
+}
+
+/** 높이(m)를 입력받는 구역인지. 라이저와 단차만 받습니다. */
+export function zoneNeedsHeight(kind: ZoneKind): boolean {
+  return kind === "riser" || kind === "level";
+}
 
 export interface Zone {
   id: string;

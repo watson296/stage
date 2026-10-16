@@ -7,6 +7,12 @@ import {
   type Note,
   type StagePlan,
   type CustomEquipment,
+  type StageShape,
+  type ArcSegment,
+  type Vec2,
+  type Zone,
+  isZoneKind,
+  zoneNeedsHeight,
 } from "./types";
 import { findVariant } from "./equipment";
 import {
@@ -206,7 +212,7 @@ function migrateV2(root: Record<string, unknown>, warnings: string[]): Event {
 
   const plans = Array.isArray(root.stagePlans) ? root.stagePlans : [];
   const migrated = plans
-    .map((p, i) => v2Plan(p, i))
+    .map((p, i) => v2Plan(p, i, warnings))
     .filter((p): p is StagePlan => p !== null);
   if (migrated.length) base.stagePlans = migrated;
   else warnings.push("배치도가 없어 빈 배치도를 하나 만들었습니다.");
@@ -226,21 +232,14 @@ function migrateV2(root: Record<string, unknown>, warnings: string[]): Event {
   return base;
 }
 
-function v2Plan(raw: unknown, idx: number): StagePlan | null {
+function v2Plan(raw: unknown, idx: number, warnings: string[]): StagePlan | null {
   if (!isObject(raw)) return null;
-  const pts =
-    isObject(raw.stage) && Array.isArray(raw.stage.points)
-      ? raw.stage.points.filter(isObject).map((p) => ({
-          x: clampNum(p.x, CAPS.COORD_MIN, CAPS.COORD_MAX, 0),
-          y: clampNum(p.y, CAPS.COORD_MIN, CAPS.COORD_MAX, 0),
-        }))
-      : [];
   const dir = raw.audienceDir;
   return {
     id: asString(raw.id) || `plan-${idx + 1}`,
     name: asString(raw.name) || `배치 ${idx + 1}`,
-    stage: pts.length >= 3 ? { points: pts } : rectStage(8, 6),
-    zones: [],
+    stage: v2Stage(raw.stage, warnings),
+    zones: v2Zones(raw.zones, warnings),
     objects: (Array.isArray(raw.objects) ? raw.objects : [])
       .map(v2Object)
       .filter((o): o is StageObject => o !== null),
@@ -250,6 +249,100 @@ function v2Plan(raw: unknown, idx: number): StagePlan | null {
     audienceDir: dir === "all" || typeof dir === "number" ? dir : "front",
     rev: Math.max(1, Math.trunc(asNumber(raw.rev, 1))),
   };
+}
+
+function v2Point(raw: Record<string, unknown>): Vec2 {
+  return {
+    x: clampNum(raw.x, CAPS.COORD_MIN, CAPS.COORD_MAX, 0),
+    y: clampNum(raw.y, CAPS.COORD_MIN, CAPS.COORD_MAX, 0),
+  };
+}
+
+/**
+ * 무대 모양을 그대로 살려 둡니다. 꼭짓점이 모자라면 기본 사각 무대로 되돌리고,
+ * 원호는 꼭짓점 번호가 실제로 가리킬 수 있는 것만 남깁니다.
+ */
+function v2Stage(raw: unknown, warnings: string[]): StageShape {
+  if (!isObject(raw) || !Array.isArray(raw.points)) return rectStage(8, 6);
+  const points = raw.points
+    .filter(isObject)
+    .slice(0, CAPS.MAX_STAGE_POINTS)
+    .map(v2Point);
+  if (points.length < 3) {
+    warnings.push("무대 꼭짓점이 세 개가 안 되어 기본 사각 무대로 되돌렸습니다.");
+    return rectStage(8, 6);
+  }
+  const arcs = v2Arcs(raw.arcs, points.length, warnings);
+  return arcs.length ? { points, arcs } : { points };
+}
+
+/**
+ * 원호는 꼭짓점 i에서 i+1로 가는 변에만 붙습니다. 그 규칙에서 벗어난 항목과
+ * 같은 변에 겹쳐 들어온 항목은 버립니다.
+ */
+function v2Arcs(raw: unknown, n: number, warnings: string[]): ArcSegment[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ArcSegment[] = [];
+  const seen = new Set<number>();
+  let dropped = 0;
+  for (const item of raw.slice(0, CAPS.MAX_ARCS)) {
+    if (!isObject(item)) {
+      dropped++;
+      continue;
+    }
+    const from = asNumber(item.fromIdx, -1);
+    const to = asNumber(item.toIdx, -1);
+    const bulgeM = clampNum(item.bulgeM, -CAPS.BULGE_MAX, CAPS.BULGE_MAX, 0);
+    const ok =
+      Number.isInteger(from) &&
+      Number.isInteger(to) &&
+      from >= 0 &&
+      from < n &&
+      to === (from + 1) % n &&
+      bulgeM !== 0 &&
+      !seen.has(from);
+    if (!ok) {
+      dropped++;
+      continue;
+    }
+    seen.add(from);
+    out.push({ fromIdx: from, toIdx: to, bulgeM });
+  }
+  if (dropped) warnings.push(`무대 원호 ${dropped}개를 읽을 수 없어 직선으로 두었습니다.`);
+  return out;
+}
+
+function v2Zones(raw: unknown, warnings: string[]): Zone[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Zone[] = [];
+  let dropped = 0;
+  for (const item of raw.slice(0, CAPS.MAX_ZONES)) {
+    if (!isObject(item) || !isZoneKind(item.kind) || !Array.isArray(item.polygon)) {
+      dropped++;
+      continue;
+    }
+    const polygon = item.polygon
+      .filter(isObject)
+      .slice(0, CAPS.MAX_ZONE_POINTS)
+      .map(v2Point);
+    if (polygon.length < 3) {
+      dropped++;
+      continue;
+    }
+    const zone: Zone = {
+      id: idToString(item.id, "zone"),
+      kind: item.kind,
+      name: asString(item.name),
+      polygon,
+    };
+    // 높이는 라이저와 단차만 가집니다. 다른 종류에 붙어 온 값은 버립니다.
+    if (zoneNeedsHeight(item.kind)) {
+      zone.heightM = clampNum(item.heightM, 0, CAPS.ZONE_HEIGHT_MAX, 0.4);
+    }
+    out.push(zone);
+  }
+  if (dropped) warnings.push(`구역 ${dropped}개를 읽을 수 없어 빼고 불러왔습니다.`);
+  return out;
 }
 
 function v2Object(raw: unknown): StageObject | null {

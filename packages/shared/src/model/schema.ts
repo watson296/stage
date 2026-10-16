@@ -12,6 +12,12 @@ export const CAPS = {
   STAGE_MAX: 500,
   DIM_MIN: 0.05,
   DIM_MAX: 100,
+  MAX_ZONES: 200,
+  MAX_ZONE_POINTS: 64,
+  MAX_ARCS: 200,
+  MAX_STAGE_POINTS: 200,
+  BULGE_MAX: 200,
+  ZONE_HEIGHT_MAX: 10,
 } as const;
 
 export class SchemaError extends Error {}
