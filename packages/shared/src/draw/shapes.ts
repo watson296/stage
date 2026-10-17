@@ -315,16 +315,8 @@ export const SHAPES: Record<string, ShapeFn> = {
   },
 
   person(ctx, _o, _s, hw, hd, c) {
-    const r = Math.min(hw, hd) * 0.92;
-    // 어깨(원)와 바라보는 방향(+y) 표시
-    circ(ctx, 0, 0, r, hexA(c, 0.28), c, 1.4);
-    ctx.fillStyle = hexA(c, 0.8);
-    ctx.beginPath();
-    ctx.moveTo(0, r * 0.95);
-    ctx.lineTo(-r * 0.42, r * 0.3);
-    ctx.lineTo(r * 0.42, r * 0.3);
-    ctx.closePath();
-    ctx.fill();
+    // 위에서 본 머리 하나. 팔다리나 방향 표시는 그리지 않습니다.
+    circ(ctx, 0, 0, Math.min(hw, hd) * 0.92, hexA(c, 0.28), c, 1.4);
   },
 
   power(ctx, _o, _s, hw, hd, c) {

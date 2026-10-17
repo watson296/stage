@@ -139,22 +139,29 @@ export const EQUIPMENT: Record<string, EquipmentType> = {
   // 아래 네 가지는 blocks.patch에 없어 규격이 제안값입니다(SPEC 6.2). 검토가 필요합니다.
   diBox: {
     name: "DI 박스", cat: "audio", draw: "dibox",
-    variants: [{ id: "std", label: "기본", w: 0.12, d: 0.1, h: 0.05 }],
+    variants: [
+      { id: "passive", label: "패시브", w: 0.12, d: 0.08, h: 0.05 },
+      { id: "active", label: "액티브(배터리)", w: 0.14, d: 0.09, h: 0.06 },
+    ],
   },
   guitarStand: {
     name: "기타 스탠드", cat: "stage", draw: "gstand",
-    variants: [{ id: "std", label: "기본", w: 0.35, d: 0.35, h: 0.9 }],
+    variants: [
+      { id: "a", label: "A자형", w: 0.3, d: 0.3, h: 1.0 },
+      { id: "multi3", label: "멀티 스탠드(3단)", w: 0.5, d: 0.4, h: 1.0 },
+    ],
   },
   person: {
     name: "사람", cat: "stage", draw: "person",
-    variants: [
-      { id: "player", label: "연주자", w: 0.5, d: 0.35, h: 1.7 },
-      { id: "staff", label: "스태프", w: 0.5, d: 0.35, h: 1.7 },
-    ],
+    // 규격은 하나입니다. 연주자·스태프 구분은 레이블로 적습니다.
+    variants: [{ id: "std", label: "기본", w: 0.5, d: 0.5, h: 1.7 }],
   },
   powerBox: {
     name: "전원 박스", cat: "stage", draw: "power",
-    variants: [{ id: "std", label: "기본", w: 0.3, d: 0.25, h: 0.2 }],
+    variants: [
+      { id: "small", label: "소형 분전반", w: 0.3, d: 0.2, h: 0.15 },
+      { id: "distro", label: "대형 디스트로", w: 0.5, d: 0.35, h: 0.25 },
+    ],
   },
 };
 
