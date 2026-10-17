@@ -96,8 +96,9 @@ function trunc(s: string, n: number): string {
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
-function round1(v: number): number {
-  return Math.round(v * 10) / 10;
+/** 치수 표시. 1m 아래는 소수 둘째 자리까지 적습니다(DI 박스 0.12 등). */
+function dim(v: number): string {
+  return v < 1 ? String(Math.round(v * 100) / 100) : String(Math.round(v * 10) / 10);
 }
 
 export function objectColor(o: StageObject): string {
@@ -301,7 +302,7 @@ function drawObject(
     ctx.font = "9px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    ctx.fillText(`${round1(o.w)}×${round1(o.d)}m`, center.x, center.y - Math.max(wpx, hpx) / 2 - 3);
+    ctx.fillText(`${dim(o.w)}×${dim(o.d)}m`, center.x, center.y - Math.max(wpx, hpx) / 2 - 3);
   }
 }
 

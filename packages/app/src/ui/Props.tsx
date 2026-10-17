@@ -36,7 +36,9 @@ export function Props() {
   S.docVersion.value;
   const sel = S.selection.value;
   const plan = S.currentPlan();
-  const r1 = (v: number) => Math.round(v * 10) / 10;
+  // 소수 둘째 자리까지 보여 줍니다. DI 박스 0.12×0.08처럼 10cm 아래 치수가
+  // 있어서 한 자리로 반올림하면 규격과 다른 값이 보입니다.
+  const r2 = (v: number) => Math.round(v * 100) / 100;
 
   // 무대 모양 모드에서는 고른 꼭짓점을 보여 줍니다.
   if (S.mode.value === "stage") return <VertexProps />;
@@ -63,8 +65,8 @@ export function Props() {
     return (
       <div class="props">
         <span class="selnm">{o.label || t?.name || "장비"}</span>
-        <span class="pg">X:<input class="inp" type="number" step="0.1" value={r1(o.x)} {...editHandlers(setNum("x"))} />m</span>
-        <span class="pg">Y:<input class="inp" type="number" step="0.1" value={r1(o.y)} {...editHandlers(setNum("y"))} />m</span>
+        <span class="pg">X:<input class="inp" type="number" step="0.1" value={r2(o.x)} {...editHandlers(setNum("x"))} />m</span>
+        <span class="pg">Y:<input class="inp" type="number" step="0.1" value={r2(o.y)} {...editHandlers(setNum("y"))} />m</span>
         {t && t.variants.length > 1 && (
           <span class="pg">규격:
             <select class="inp wide" value={o.variantId ?? ""}
@@ -75,11 +77,11 @@ export function Props() {
           </span>
         )}
         <span class="pg">크기:
-          <input class="inp" type="number" step="0.05" min="0.1" value={r1(o.w)}
-            {...editHandlers((v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: Math.max(0.1, parseFloat(v) || o.w), d: o.d }))} />
+          <input class="inp" type="number" step="0.01" min="0.05" value={r2(o.w)}
+            {...editHandlers((v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: Math.max(S.MIN_SIZE_M, parseFloat(v) || o.w), d: o.d }))} />
           ×
-          <input class="inp" type="number" step="0.05" min="0.1" value={r1(o.d)}
-            {...editHandlers((v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: o.w, d: Math.max(0.1, parseFloat(v) || o.d) }))} />m
+          <input class="inp" type="number" step="0.01" min="0.05" value={r2(o.d)}
+            {...editHandlers((v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: o.w, d: Math.max(S.MIN_SIZE_M, parseFloat(v) || o.d) }))} />m
         </span>
         <span class="pg">회전:
           <input class="inp" type="number" step="5" value={Math.round(o.rot)}

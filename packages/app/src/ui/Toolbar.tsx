@@ -80,7 +80,9 @@ export function Toolbar() {
           onChange={(e) => (S.snap.value = (e.target as HTMLInputElement).checked)} /> 스냅
       </label>
       <div class="sep" />
-      <button class="btn" id="btnFit" onClick={S.fit}>맞춤</button>
+      <button class={"btn" + (S.autoFit.value ? " active" : "")} id="btnFit"
+        title="무대 모양이 바뀌면 화면을 자동으로 맞춥니다"
+        onClick={() => S.fit()}>맞춤</button>
       <button class="btn btn-danger" onClick={() => {
         if (confirm("모든 장비와 메모를 초기화할까요?")) S.clearPlan();
       }}>초기화</button>

@@ -239,3 +239,17 @@ describe("clampToShape (호가 든 무대)", () => {
     expect(c.y).toBeCloseTo(0, 6);
   });
 });
+
+describe("화면 맞춤에 쓰는 경계상자", () => {
+  it("바깥으로 부푼 호는 무대를 음수 쪽으로 넓힌다", () => {
+    // 변 0(뒤쪽)의 법선은 -y이므로 양수 bulge가 위로 부풉니다.
+    const shape: StageShape = {
+      points: rectStage(10, 6).points,
+      arcs: [{ fromIdx: 0, toIdx: 1, bulgeM: 1.5 }],
+    };
+    const b = shapeBounds(shape);
+    expect(b.minY).toBeLessThan(-1.4);
+    // 그래서 가로·세로만으로는 화면을 맞출 수 없고 경계상자가 필요합니다.
+    expect(b.maxY - b.minY).toBeGreaterThan(7.4);
+  });
+});

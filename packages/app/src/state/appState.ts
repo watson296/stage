@@ -8,7 +8,10 @@ import {
   clamp,
   clampToShape,
   hitTest,
+  polygonBounds,
+  rotatedAABB,
   shapeBounds,
+  unionBounds,
   rectStage,
   arcOnEdge,
   CAPS,
@@ -26,6 +29,7 @@ import {
   type Event,
   type StageObject,
   type StagePlan,
+  type AABB,
   type Note,
   type Vec2,
   type Zone,
@@ -33,7 +37,13 @@ import {
 } from "@stage-planner/shared";
 import { Store } from "./store";
 import { createAutosaver } from "./autosave";
-import { fitCamera, type Camera } from "../render/camera";
+import {
+  fitCamera,
+  sameCamera,
+  easeOut,
+  lerpCamera,
+  type Camera,
+} from "../render/camera";
 import type { Mode, Selection } from "../render/canvas";
 
 export const store = new Store();
@@ -241,7 +251,7 @@ export function setStageSize(w: number, d: number): void {
       p.stage = rectStage(clamp(w, 1, 50), clamp(d, 1, 50));
     }),
   );
-  fit();
+  fitAfterRebuild();
 }
 
 export function clearPlan(): void {
@@ -305,9 +315,91 @@ export function setCanvasSize(w: number, h: number): void {
   canvasSize = { w, h };
 }
 
-export function fit(): void {
-  const { w, d } = stageSize();
-  camera.value = fitCamera(canvasSize.w, canvasSize.h, w, d, VIEW_MARGIN);
+/**
+ * 무대 모양이 바뀌면 화면을 다시 맞출지. 사용자가 직접 확대·축소하거나 화면을
+ * 옮기면 꺼지고, 맞춤 단추를 누르면 다시 켜집니다.
+ */
+export const autoFit = signal(true);
+
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+const FIT_MS = 200;
+let fitAnim = 0;
+
+function cancelFitAnim(): void {
+  if (fitAnim) {
+    cancelAnimationFrame(fitAnim);
+    fitAnim = 0;
+  }
+}
+
+/** 화면이 움직이는 이유가 사용자 손일 때. 자동 맞춤을 끄고 진행 중인 움직임을 멈춥니다. */
+export function userMovedCamera(cam: Camera): void {
+  cancelFitAnim();
+  autoFit.value = false;
+  camera.value = cam;
+}
+
+function targetCamera(): Camera {
+  return fitCamera(canvasSize.w, canvasSize.h, planBounds(), VIEW_MARGIN);
+}
+
+/** 무대와 구역, 무대 밖 장비를 모두 담는 범위. */
+function planBounds(): AABB {
+  const p = currentPlan();
+  const boxes: AABB[] = [shapeBounds(p.stage)];
+  for (const z of p.zones) if (z.polygon.length >= 3) boxes.push(polygonBounds(z.polygon));
+  for (const o of p.objects) {
+    if (o.onStage) continue;
+    boxes.push(rotatedAABB({ x: o.x, y: o.y, w: o.w, d: o.d, rot: o.rot }));
+  }
+  return unionBounds(boxes);
+}
+
+function moveCameraTo(target: Camera, animate: boolean): void {
+  cancelFitAnim();
+  if (!animate || reducedMotion() || sameCamera(camera.value, target)) {
+    camera.value = target;
+    return;
+  }
+  const from = camera.value;
+  const t0 = performance.now();
+  const step = (now: number): void => {
+    const t = Math.min(1, (now - t0) / FIT_MS);
+    camera.value = lerpCamera(from, target, easeOut(t));
+    fitAnim = t < 1 ? requestAnimationFrame(step) : 0;
+  };
+  fitAnim = requestAnimationFrame(step);
+}
+
+/** 맞춤 단추. 자동 맞춤을 다시 켭니다. */
+export function fit(animate = true): void {
+  autoFit.value = true;
+  moveCameraTo(targetCamera(), animate);
+}
+
+/**
+ * 무대 **모양**이 바뀌었을 때만 부릅니다(템플릿, 꼭짓점, 호, 무대 크기).
+ * 장비를 옮기거나 구역을 고칠 때는 부르지 않습니다. 작업 중에 화면이 움직이면
+ * 더 불편하기 때문입니다.
+ */
+export function fitIfAuto(): void {
+  if (autoFit.value) moveCameraTo(targetCamera(), true);
+}
+
+/**
+ * 템플릿 적용이나 무대 크기 입력처럼 무대를 통째로 다시 만드는 경우입니다.
+ * 새 무대를 보여 주는 것이 당연하므로 자동 맞춤이 꺼져 있어도 맞춥니다.
+ * 다만 사용자가 정한 자동 맞춤 설정은 건드리지 않습니다.
+ */
+export function fitAfterRebuild(): void {
+  moveCameraTo(targetCamera(), true);
 }
 
 // ── 모달 상태 ────────────────────────────────────────────────────────────────
@@ -331,7 +423,7 @@ export function applyTemplate(id: string): void {
       p.audienceDir = t.audienceDir;
     }),
   );
-  fit();
+  fitAfterRebuild();
 }
 
 /** 무대 모양 모드에서 고른 꼭짓점 번호. 속성 바가 이 값을 읽습니다. */
@@ -364,6 +456,7 @@ export function removeSelectedVertex(): void {
     }),
   );
   vertexSel.value = null;
+  fitIfAuto();
   statusMsg.value = "꼭짓점을 지웠습니다.";
 }
 
@@ -373,6 +466,7 @@ export function setVertexPos(index: number, x: number, y: number): void {
     const p = doc.stagePlans[0];
     p.stage = moveShapeVertex(p.stage, index, { x, y });
   });
+  fitIfAuto();
 }
 
 /** 변 하나를 호로 만들거나(부푼 거리) 0을 주어 직선으로 되돌립니다. */
@@ -392,6 +486,7 @@ export function straightenEdge(edgeIdx: number): void {
       p.stage = setBulge(p.stage, edgeIdx, 0);
     }),
   );
+  fitIfAuto();
   statusMsg.value = "변을 직선으로 되돌렸습니다.";
 }
 
@@ -401,6 +496,14 @@ export function setAudienceDir(dir: "front" | "all"): void {
       p.audienceDir = dir;
     }),
   );
+}
+
+/**
+ * 꼭짓점이나 변 중점 끌기가 끝났을 때. 끄는 동안에는 화면을 움직이지 않고
+ * 손을 뗀 뒤 한 번만 맞춥니다.
+ */
+export function shapeDragEnded(): void {
+  fitIfAuto();
 }
 
 export const TEMPLATE_LIST = TEMPLATES;

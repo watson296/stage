@@ -142,6 +142,8 @@ export function StageCanvas() {
         }
         // 끌지 않고 뗀 것은 손잡이 탭입니다.
         if (hd && !moved) onHandleTap(hd);
+        // 무대 모양을 끌어 바꿨으면 손을 뗀 뒤 한 번만 화면을 맞춥니다.
+        if (hd && moved && S.mode.value === "stage") S.shapeDragEnded();
         handleDrag.current = null;
         drag.current = null;
       },
@@ -168,7 +170,8 @@ export function StageCanvas() {
         let cam = S.camera.value;
         if (factor !== 1) cam = zoomAt(cam, factor, fx, fy);
         if (dx !== 0 || dy !== 0) cam = pan(cam, dx, dy);
-        S.camera.value = cam;
+        // 사용자가 직접 움직였으므로 자동 맞춤을 끕니다.
+        S.userMovedCamera(cam);
       },
     });
 
@@ -183,7 +186,7 @@ export function StageCanvas() {
       S.setCanvasSize(canvas.clientWidth, canvas.clientHeight);
       if (!firstFit.current && canvas.clientWidth > 0) {
         firstFit.current = true;
-        S.fit();
+        S.fit(false); // 첫 화면은 움직임 없이 바로 맞춥니다
       }
       render();
     });
