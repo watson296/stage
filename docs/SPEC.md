@@ -118,6 +118,7 @@ interface Event {
   name: string;          // "2026 봄 정기공연"
   date: string;          // YYYY-MM-DD
   venue: Venue;
+  pa: PaSetup;           // PA 조언 입력(편성, 장르, 스피커 제원)
   stagePlans: StagePlan[];
   timetable: Timetable;
   notices: Notice[];
@@ -241,6 +242,20 @@ interface Device {
   connectedAt: string;
   lastSeen: string;
   status: "online" | "stale" | "offline";
+}
+
+// PA 조언의 입력. 공연마다 다르므로 Event에 함께 저장합니다. 스피커 제원은
+// 프리셋에서 고른 값을 복사해 둡니다. 복사하지 않으면 프리셋이 없는 다른 기기에서
+// 같은 파일을 열었을 때 조언이 달라집니다.
+interface PaSetup {
+  genre: "acoustic" | "band" | "rock" | "electronic";
+  lineup: {
+    vocals: number;                 // 보컬 마이크 수
+    entries: { instrumentId: string; count: number }[];
+  };
+  speakerName: string;              // 프리셋 이름(표시용)
+  speaker: SpeakerSpec;             // 프리셋에서 복사한 제원
+  mixerChannels: number;            // 쓸 수 있는 믹서 입력 채널 수
 }
 
 // 스피커 제원 프리셋. Event에 넣지 않고 기기에 로컬로 저장해 여러 공연에서 씁니다.
@@ -497,6 +512,25 @@ interface ArcSegment { fromIdx: number; toIdx: number; bulgeM: number }
 
 자주 쓰는 스피커 제원은 **프리셋으로 기기에 저장**해 두고 다음 공연에서는 고르기만
 하면 됩니다(`SpeakerPreset`, 5장). 프리셋은 Event 파일이 아니라 기기에 남습니다.
+
+### 8.1.1 조언 규칙
+
+조언은 아래 규칙으로만 만듭니다. 규칙과 기준값은 모두 화면에 근거로 적습니다.
+
+| 항목 | 규칙 |
+|---|---|
+| 메인 형식 | 수용 300명 이상이거나 맨 뒤 25m 이상이면 라인 어레이, 아니면 포인트 소스 |
+| 메인 대수 | 한 대가 맨 뒤에서 내는 음압과 장르 목표 음압의 차이를 메우는 대수. 한쪽 4대까지 |
+| 목표 음압 | 어쿠스틱 95 / 밴드 100 / 록 103 / 전자음악 103 dB |
+| 서브우퍼 | 장르별로 한쪽 0·1·1·2대씩 좌우 |
+| 딜레이 스피커 | 맨 뒤 25m 이상이거나 목표 음압에 못 미치면. 자리는 맨 뒤의 절반 거리 |
+| 딜레이 시간 | 그 거리를 소리가 지나는 시간 + 하스 여유 10ms |
+| 모니터 믹스 | 보컬 수 + 모니터가 필요한 악기 자리 수. 최대 8개 |
+| 전원 | 백라인 대표값 + PA(메인은 정격의 35%, 서브 400W, 모니터 150W, 믹서 150W) |
+| 회로 | 회로 하나에 정격의 80%까지만 겁니다 |
+
+악기별 입력 채널·마이크·스탠드와 대표 소비 전력은
+`packages/shared/src/audio/lineup.ts`에 표로 두고 테스트로 고정합니다.
 
 ### 8.2 출력
 

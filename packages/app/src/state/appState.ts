@@ -51,6 +51,10 @@ export const store = new Store();
 /** 문서가 바뀔 때마다 올라갑니다. 컴포넌트는 이 값을 읽어 다시 그립니다. */
 export const docVersion = signal(0);
 
+/** 지금 보고 있는 화면. 1~3번 화면은 호스트 없이 혼자 돌아갑니다(SPEC 4). */
+export type Screen = "stage" | "pa";
+export const screen = signal<Screen>("stage");
+
 export const mode = signal<Mode>("select");
 export const selection = signal<Selection | null>(null);
 export const gridSz = signal(0.25);

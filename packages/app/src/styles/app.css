@@ -478,3 +478,169 @@ select.inp {
     object-fit: contain;
   }
 }
+
+/* 화면 탭 */
+.hdr-l {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+/* PA 조언 화면 */
+.pa {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(320px, 2fr) minmax(360px, 3fr);
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+  align-items: start;
+}
+.pa-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+.card h2 {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.card h3 {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 16px 0 8px;
+}
+.card .muted {
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.pa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px 12px;
+}
+.pa-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.pa-num {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.pa-num.wide {
+  flex: 1;
+  min-width: 160px;
+}
+.pa-num .inp {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.pa-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  min-height: 24px;
+}
+.pa-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 16px;
+}
+.pa-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pa-facts dt {
+  color: var(--text-muted);
+}
+.pa-facts dd {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.pa-facts dd .muted {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.pa-notes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.pa-notes li::before {
+  content: "— ";
+}
+.pa-ok,
+.pa-warn {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.pa-ok {
+  background: var(--sg-mist);
+  color: var(--text);
+}
+/* 경고는 한 화면에 한 곳만 쓰는 시그널 레드 대신 테두리로 구분합니다. */
+.pa-warn {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-weight: 700;
+}
+.pa-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.pa-table th,
+.pa-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.pa-table th {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+.pa-table td.num {
+  color: var(--text-muted);
+  width: 44px;
+}
+.card .btn {
+  margin-top: 16px;
+}
+
+@media (max-width: 860px) {
+  .pa {
+    grid-template-columns: 1fr;
+  }
+}

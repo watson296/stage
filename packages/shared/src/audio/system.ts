@@ -83,8 +83,11 @@ export function adviseSystem(input: PaInput): SystemAdvice {
   const meetsTarget = backSplDb >= g.targetSplDb;
 
   reasons.push(
-    `한 대가 ${r1(backM)}m에서 ${r1(oneAtBack)}dB이고 목표는 ${g.targetSplDb}dB이므로` +
-      ` 한쪽 ${perSide}대(합계 ${mainCount}대)로 ${r1(gain)}dB를 더합니다.`,
+    perSide === 1
+      ? `한 대가 ${r1(backM)}m에서 ${r1(oneAtBack)}dB이고 목표는 ${g.targetSplDb}dB이므로` +
+        ` 좌우 한 대씩 ${mainCount}대로 충분합니다.`
+      : `한 대가 ${r1(backM)}m에서 ${r1(oneAtBack)}dB이고 목표는 ${g.targetSplDb}dB이므로` +
+        ` 한쪽 ${perSide}대(합계 ${mainCount}대)를 쌓아 ${r1(gain)}dB를 더합니다.`,
   );
   if (!meetsTarget) {
     reasons.push(

@@ -5,6 +5,7 @@ import { Palette } from "./Palette";
 import { Toolbar } from "./Toolbar";
 import { Props } from "./Props";
 import { NoteModal, CustomModal, InfoModal, Toasts } from "./Modals";
+import { PaScreen } from "./PaScreen";
 import { exportPNG, exportPDF } from "../render/export-png";
 import { downloadJSON, parseEvent, pickJSONFile } from "../io/json";
 import { loadEvent } from "../state/autosave";
@@ -105,34 +106,50 @@ export function App() {
         <div class="hdr-l">
           <div class="title">Stage Planner</div>
           <div class="sub">새결 공연 무대 구상 도구</div>
+          <nav class="tabs">
+            <button class={"btn" + (S.screen.value === "stage" ? " active" : "")}
+              id="tabStage" onClick={() => (S.screen.value = "stage")}>무대 설계</button>
+            <button class={"btn" + (S.screen.value === "pa" ? " active" : "")}
+              id="tabPa" onClick={() => (S.screen.value = "pa")}>PA 조언</button>
+          </nav>
         </div>
         <div class="hdr-r">
           <button class="btn" onClick={() => downloadJSON(S.currentEvent())}>저장</button>
           <button class="btn" onClick={() => void doLoad()}>불러오기</button>
-          <button class="btn btn-accent" id="btnExport"
-            onClick={() => exportPNG(S.currentPlan(), S.currentEvent().name, S.gridSz.value, footerLogo)}>
-            PNG 내보내기
-          </button>
-          <button class="btn" id="btnPdf"
-            onClick={() => exportPDF(S.currentPlan(), S.currentEvent().name, S.gridSz.value, footerLogo)}>
-            PDF 내보내기
-          </button>
+          {S.screen.value === "stage" && (
+            <>
+              <button class="btn btn-accent" id="btnExport"
+                onClick={() => exportPNG(S.currentPlan(), S.currentEvent().name, S.gridSz.value, footerLogo)}>
+                PNG 내보내기
+              </button>
+              <button class="btn" id="btnPdf"
+                onClick={() => exportPDF(S.currentPlan(), S.currentEvent().name, S.gridSz.value, footerLogo)}>
+                PDF 내보내기
+              </button>
+            </>
+          )}
           <button class="btn" onClick={() => (S.showInfoModal.value = true)}>정보</button>
         </div>
       </header>
-      <Toolbar />
-      <div class="main">
-        <Palette />
-        <div class="work">
-          <div class="cv-wrap"><StageCanvas /></div>
-          <Props />
-          <div class="sbar">
-            <span>무대: <strong>{r1(size.w)}m × {r1(size.d)}m</strong></span>
-            <span id="status">{S.statusMsg.value}</span>
-            <span class="mouse">{S.mousePos.value}</span>
+      {S.screen.value === "pa" ? (
+        <PaScreen />
+      ) : (
+        <>
+          <Toolbar />
+          <div class="main">
+            <Palette />
+            <div class="work">
+              <div class="cv-wrap"><StageCanvas /></div>
+              <Props />
+              <div class="sbar">
+                <span>무대: <strong>{r1(size.w)}m × {r1(size.d)}m</strong></span>
+                <span id="status">{S.statusMsg.value}</span>
+                <span class="mouse">{S.mousePos.value}</span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
       <NoteModal />
       <CustomModal />
       <InfoModal />
