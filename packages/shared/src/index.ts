@@ -9,3 +9,8 @@ export * from "./draw/shapes";
 export * from "./model/templates";
 export * from "./model/shapeEdit";
 export * from "./model/zones";
+export * from "./audio/acoustics";
+export * from "./audio/speaker";
+export * from "./audio/lineup";
+export * from "./audio/channels";
+export * from "./audio/system";

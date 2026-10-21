@@ -117,3 +117,52 @@ describe("v2 검증", () => {
     expect(warnings.join(" ")).toContain("무대 꼭짓점");
   });
 });
+
+describe("PA 입력 왕복 저장", () => {
+  it("편성과 스피커 제원을 그대로 살린다", () => {
+    const { event } = roundTrip((ev) => {
+      ev.pa.genre = "rock";
+      ev.pa.mixerChannels = 32;
+      ev.pa.speakerName = "메인 15인치";
+      ev.pa.speaker = {
+        sensitivityDb: 99, maxSplDb: 131, dispersionH: 60, dispersionV: 40, powerW: 1200,
+      };
+      ev.pa.lineup = {
+        vocals: 3,
+        entries: [
+          { instrumentId: "drums", count: 1 },
+          { instrumentId: "eguitar", count: 2 },
+        ],
+      };
+    });
+    expect(event.pa.genre).toBe("rock");
+    expect(event.pa.mixerChannels).toBe(32);
+    expect(event.pa.speakerName).toBe("메인 15인치");
+    expect(event.pa.speaker.powerW).toBe(1200);
+    expect(event.pa.lineup.vocals).toBe(3);
+    expect(event.pa.lineup.entries).toEqual([
+      { instrumentId: "drums", count: 1 },
+      { instrumentId: "eguitar", count: 2 },
+    ]);
+  });
+
+  it("모르는 장르와 악기는 버리고 경고를 남긴다", () => {
+    const raw = JSON.parse(JSON.stringify(emptyEvent()));
+    raw.pa = {
+      genre: "트로트",
+      lineup: { vocals: 1, entries: [{ instrumentId: "하프", count: 1 }] },
+    };
+    const { event, warnings } = migrate(raw);
+    expect(event.pa.genre).toBe("band");
+    expect(event.pa.lineup.entries).toEqual([]);
+    expect(warnings.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("PA 입력이 아예 없는 옛 v2 파일은 기본값으로 연다", () => {
+    const raw = JSON.parse(JSON.stringify(emptyEvent()));
+    delete raw.pa;
+    const { event } = migrate(raw);
+    expect(event.pa.genre).toBe("band");
+    expect(event.pa.speaker.sensitivityDb).toBeGreaterThan(0);
+  });
+});

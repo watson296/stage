@@ -18,6 +18,9 @@ export const CAPS = {
   MAX_STAGE_POINTS: 200,
   BULGE_MAX: 200,
   ZONE_HEIGHT_MAX: 10,
+  MAX_CHANNELS: 512,
+  MAX_LINEUP_ENTRIES: 64,
+  MAX_INSTRUMENT_COUNT: 64,
 } as const;
 
 export class SchemaError extends Error {}

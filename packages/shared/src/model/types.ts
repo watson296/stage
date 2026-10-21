@@ -1,6 +1,9 @@
 // 공연 하루(Event)를 담는 v2 데이터 모델입니다. SPEC 5장을 따릅니다.
 // 모든 좌표와 크기는 미터이고, 각도는 도(°)이며 시계 방향입니다.
 
+import { DEFAULT_SPEAKER, type SpeakerSpec } from "../audio/speaker";
+import type { Genre, Lineup } from "../audio/lineup";
+
 export const SCHEMA_VERSION = 2 as const;
 
 export interface Vec2 {
@@ -178,12 +181,42 @@ export interface Event {
   name: string;
   date: string; // YYYY-MM-DD
   venue: Venue;
+  pa: PaSetup;
   stagePlans: StagePlan[];
   timetable: Timetable;
   notices: Notice[];
   devices: Device[];
   customEquipment: Record<string, CustomEquipment>;
   accessCodes: AccessCodes;
+}
+
+/**
+ * PA 조언의 입력. 공연마다 달라지므로 Event에 함께 저장합니다.
+ * 스피커 제원은 프리셋에서 고른 값을 **복사해** 둡니다. 프리셋은 기기에만
+ * 남으므로, 복사해 두지 않으면 다른 기기에서 연 파일의 조언이 달라집니다.
+ */
+export interface PaSetup {
+  genre: Genre;
+  lineup: Lineup;
+  speakerName: string;
+  speaker: SpeakerSpec;
+  mixerChannels: number;
+}
+
+export const DEFAULT_PA: PaSetup = {
+  genre: "band",
+  lineup: { vocals: 1, entries: [] },
+  speakerName: "",
+  speaker: { ...DEFAULT_SPEAKER },
+  mixerChannels: 16,
+};
+
+export function clonePa(p: PaSetup): PaSetup {
+  return {
+    ...p,
+    speaker: { ...p.speaker },
+    lineup: { vocals: p.lineup.vocals, entries: p.lineup.entries.map((e) => ({ ...e })) },
+  };
 }
 
 /** 스피커 제원 프리셋. Event가 아니라 기기에 로컬로 저장합니다. */
@@ -241,6 +274,7 @@ export function emptyEvent(): Event {
     name: "새 공연",
     date: new Date().toISOString().slice(0, 10),
     venue: { ...DEFAULT_VENUE, power: { ...DEFAULT_VENUE.power } },
+    pa: clonePa(DEFAULT_PA),
     stagePlans: [emptyStagePlan()],
     timetable: { dayStart: "09:00", items: [] },
     notices: [],
@@ -254,6 +288,7 @@ export function cloneEvent(e: Event): Event {
   return {
     ...e,
     venue: { ...e.venue, power: { ...e.venue.power } },
+    pa: clonePa(e.pa),
     stagePlans: e.stagePlans.map((p) => ({
       ...p,
       stage: { points: p.stage.points.map((v) => ({ ...v })), arcs: p.stage.arcs?.map((a) => ({ ...a })) },

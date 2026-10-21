@@ -13,7 +13,11 @@ import {
   type Zone,
   isZoneKind,
   zoneNeedsHeight,
+  clonePa,
+  DEFAULT_PA,
+  type PaSetup,
 } from "./types";
+import { isGenre, instrumentInfo, type LineupEntry } from "../audio/lineup";
 import { findVariant } from "./equipment";
 import {
   CAPS,
@@ -217,6 +221,8 @@ function migrateV2(root: Record<string, unknown>, warnings: string[]): Event {
   if (migrated.length) base.stagePlans = migrated;
   else warnings.push("배치도가 없어 빈 배치도를 하나 만들었습니다.");
 
+  base.pa = v2Pa(root.pa, warnings);
+
   if (isObject(root.customEquipment)) {
     base.customEquipment = legacyCustom(root.customEquipment, warnings);
   }
@@ -230,6 +236,56 @@ function migrateV2(root: Record<string, unknown>, warnings: string[]): Event {
     };
   }
   return base;
+}
+
+/**
+ * PA 조언 입력. 모르는 장르나 악기는 버립니다. 자동 저장도 이 함수를 거치므로
+ * 여기서 흘리면 새로고침 한 번에 편성이 사라집니다.
+ */
+function v2Pa(raw: unknown, warnings: string[]): PaSetup {
+  const pa = clonePa(DEFAULT_PA);
+  if (!isObject(raw)) return pa;
+
+  if (isGenre(raw.genre)) pa.genre = raw.genre;
+  else if (raw.genre !== undefined) warnings.push("모르는 장르라서 기본값으로 두었습니다.");
+
+  pa.speakerName = asString(raw.speakerName);
+  pa.mixerChannels = Math.trunc(clampNum(raw.mixerChannels, 0, CAPS.MAX_CHANNELS, 16));
+
+  if (isObject(raw.speaker)) {
+    const s = raw.speaker;
+    pa.speaker = {
+      sensitivityDb: clampNum(s.sensitivityDb, 60, 130, pa.speaker.sensitivityDb),
+      maxSplDb: clampNum(s.maxSplDb, 60, 160, pa.speaker.maxSplDb),
+      dispersionH: clampNum(s.dispersionH, 1, 360, pa.speaker.dispersionH),
+      dispersionV: clampNum(s.dispersionV, 1, 360, pa.speaker.dispersionV),
+      powerW: clampNum(s.powerW, 1, 100000, pa.speaker.powerW),
+    };
+  }
+
+  if (isObject(raw.lineup)) {
+    const l = raw.lineup;
+    const entries: LineupEntry[] = [];
+    let dropped = 0;
+    for (const re of Array.isArray(l.entries) ? l.entries : []) {
+      if (entries.length >= CAPS.MAX_LINEUP_ENTRIES) break;
+      if (!isObject(re) || !instrumentInfo(asString(re.instrumentId, 40))) {
+        dropped++;
+        continue;
+      }
+      entries.push({
+        instrumentId: asString(re.instrumentId, 40),
+        count: Math.trunc(clampNum(re.count, 0, CAPS.MAX_INSTRUMENT_COUNT, 1)),
+      });
+    }
+    if (dropped) warnings.push(`모르는 악기 ${dropped}개를 편성에서 뺐습니다.`);
+    pa.lineup = {
+      vocals: Math.trunc(clampNum(l.vocals, 0, CAPS.MAX_INSTRUMENT_COUNT, 0)),
+      entries,
+    };
+  }
+
+  return pa;
 }
 
 function v2Plan(raw: unknown, idx: number, warnings: string[]): StagePlan | null {
