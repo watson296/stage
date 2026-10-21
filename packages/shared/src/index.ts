@@ -16,3 +16,4 @@ export * from "./audio/channels";
 export * from "./audio/system";
 export * from "./schedule/time";
 export * from "./schedule/timetable";
+export * from "./protocol/validate";

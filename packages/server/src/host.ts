@@ -1,0 +1,347 @@
+// 호스트 서버. 같은 와이파이의 기기들이 붙어 같은 내용을 봅니다(SPEC 9).
+// 인터넷에 열어 두는 용도가 아닙니다. 기본으로 사설 IP에서 오는 연결만 받습니다.
+
+import { createServer, type IncomingMessage, type Server } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize, sep } from "node:path";
+import { WebSocketServer, type WebSocket } from "ws";
+import QRCode from "qrcode";
+import {
+  canDo,
+  isParseError,
+  parseClientMessage,
+  ERR,
+  MAX_MESSAGE_BYTES,
+  type ClientMessage,
+  type Event,
+  type Role,
+} from "@stage-planner/shared";
+import { Hub } from "./hub.ts";
+import {
+  FailureLimiter,
+  RateCounter,
+  makeAccessCodes,
+  roleForCode,
+} from "./codes.ts";
+import { isPrivateAddress, localAddresses, normalizeIp, preferredAddress } from "./net.ts";
+
+export interface HostOptions {
+  port?: number;
+  /** 배포 빌드가 있는 폴더. 없으면 안내 쪽지만 보냅니다. */
+  appDir?: string;
+  doc?: Event;
+  /** 사설 IP 제한을 풉니다. 쓸 일이 거의 없고 쓰면 경고합니다. */
+  allowPublic?: boolean;
+  /** 접속 주소를 만들 때 쓸 IP. 없으면 자동으로 고릅니다. */
+  address?: string;
+}
+
+export interface HostHandle {
+  port: number;
+  url: string;
+  codes: { operator: string; staff: string; display: string };
+  hub: Hub;
+  close: () => Promise<void>;
+  server: Server;
+}
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".woff2": "font/woff2",
+  ".ico": "image/x-icon",
+};
+
+const PING_MS = 15_000;
+const HELLO_TIMEOUT_MS = 10_000;
+
+function remoteIp(req: IncomingMessage): string {
+  return normalizeIp(req.socket.remoteAddress ?? "");
+}
+
+export async function startHost(opts: HostOptions = {}): Promise<HostHandle> {
+  const port = opts.port ?? 7321;
+  const hub = new Hub(opts.doc);
+  const codes = makeAccessCodes();
+  const limiter = new FailureLimiter();
+  const address = opts.address ?? preferredAddress(localAddresses());
+  const url = `http://${address}:${port}/`;
+
+  const server = createServer((req, res) => {
+    const ip = remoteIp(req);
+    if (!opts.allowPublic && !isPrivateAddress(ip)) {
+      res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+      res.end("같은 네트워크 안에서만 접속할 수 있습니다.");
+      return;
+    }
+    void serveStatic(req, res, opts.appDir, url);
+  });
+
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
+
+  server.on("upgrade", (req, socket, head) => {
+    const ip = remoteIp(req);
+    if (!opts.allowPublic && !isPrivateAddress(ip)) {
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  });
+
+  wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+    attach(ws, remoteIp(req), hub, codes, limiter);
+  });
+
+  await new Promise<void>((resolve) => server.listen(port, resolve));
+
+  return {
+    port,
+    url,
+    codes: { operator: codes.operator, staff: codes.staff, display: codes.display },
+    hub,
+    server,
+    close: () =>
+      new Promise<void>((resolve) => {
+        for (const client of wss.clients) client.terminate();
+        wss.close();
+        server.close(() => resolve());
+      }),
+  };
+}
+
+async function serveStatic(
+  req: IncomingMessage,
+  res: import("node:http").ServerResponse,
+  appDir: string | undefined,
+  url: string,
+): Promise<void> {
+  const path = (req.url ?? "/").split("?")[0];
+
+  if (path === "/qr.svg") {
+    const svg = await QRCode.toString(url, { type: "svg", margin: 1 });
+    res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8" });
+    res.end(svg);
+    return;
+  }
+
+  if (!appDir) {
+    res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+    res.end("배포 빌드가 없습니다. npm run build 를 먼저 실행해 주세요.");
+    return;
+  }
+
+  // 경로를 벗어나는 요청(../)은 거부합니다.
+  const rel = normalize(decodeURIComponent(path)).replace(/^([/\\])+/, "");
+  if (rel.split(sep).includes("..")) {
+    res.writeHead(403).end();
+    return;
+  }
+  const file = rel === "" ? "index.html" : rel;
+
+  try {
+    const buf = await readFile(join(appDir, file));
+    res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" });
+    res.end(buf);
+  } catch {
+    try {
+      // 없는 경로는 앱 화면으로 보냅니다.
+      const buf = await readFile(join(appDir, "index.html"));
+      res.writeHead(200, { "content-type": MIME[".html"] });
+      res.end(buf);
+    } catch {
+      res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+      res.end("찾는 파일이 없습니다.");
+    }
+  }
+}
+
+function attach(
+  ws: WebSocket,
+  ip: string,
+  hub: Hub,
+  codes: ReturnType<typeof makeAccessCodes>,
+  limiter: FailureLimiter,
+): void {
+  const rate = new RateCounter();
+  let deviceId: string | null = null;
+  let role: Role | null = null;
+  let deviceName = "";
+
+  const send = (msg: unknown): void => {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+  };
+  const fail = (code: string, message: string, close = false): void => {
+    send({ t: "error", payload: { code, message } });
+    if (close) ws.close();
+  };
+
+  // 코드를 넣지 않은 연결은 오래 붙잡아 두지 않습니다.
+  const helloTimer = setTimeout(() => {
+    if (!deviceId) fail(ERR.BAD_CODE, "접속 코드를 보내지 않았습니다.", true);
+  }, HELLO_TIMEOUT_MS);
+
+  const pinger = setInterval(() => {
+    if (deviceId) hub.touch(deviceId);
+    send({ t: "pong", payload: {} });
+  }, PING_MS);
+
+  ws.on("message", (data) => {
+    if (!rate.allow()) {
+      fail(ERR.TOO_FAST, "메시지를 너무 자주 보냈습니다.", true);
+      return;
+    }
+    const raw = typeof data === "string" ? data : data.toString("utf8");
+    const parsed = parseClientMessage(raw);
+    if (isParseError(parsed)) {
+      fail(parsed.code, parsed.message, parsed.code === ERR.TOO_BIG);
+      return;
+    }
+
+    if (parsed.t === "hello") {
+      handleHello(parsed);
+      return;
+    }
+    if (!deviceId || !role) {
+      fail(ERR.FORBIDDEN, "먼저 접속 코드를 넣어 주세요.", true);
+      return;
+    }
+    if (!canDo(role, parsed, { ownerOf: (id) => hub.ownerOf(id), deviceName })) {
+      fail(ERR.FORBIDDEN, "이 역할로는 할 수 없는 동작입니다.");
+      return;
+    }
+    handle(parsed, deviceId);
+  });
+
+  ws.on("close", () => {
+    clearTimeout(helloTimer);
+    clearInterval(pinger);
+    if (deviceId) {
+      hub.removeDevice(deviceId);
+      hub.broadcast({ t: "devices", payload: { devices: hub.deviceList() } });
+    }
+  });
+
+  function handleHello(msg: Extract<ClientMessage, { t: "hello" }>): void {
+    const lockMs = limiter.lockedFor(ip);
+    if (lockMs > 0) {
+      fail(ERR.LOCKED, `접속 시도가 많아 ${Math.ceil(lockMs / 1000)}초 뒤에 다시 됩니다.`, true);
+      return;
+    }
+    const found = roleForCode(codes, msg.payload.code);
+    // 코드에 맞는 역할만 인정합니다. 보낸 역할은 참고하지 않습니다.
+    if (!found || found !== msg.payload.role) {
+      limiter.fail(ip);
+      fail(ERR.BAD_CODE, "접속 코드가 맞지 않습니다. 호스트 화면의 코드를 확인해 주세요.", true);
+      return;
+    }
+    limiter.succeed(ip);
+    clearTimeout(helloTimer);
+
+    const now = new Date().toISOString();
+    deviceId = `dev-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
+    role = found;
+    deviceName = msg.payload.deviceName;
+    hub.addDevice({
+      id: deviceId, role, name: deviceName,
+      connectedAt: now, lastSeen: now, status: "online",
+      send, close: (reason) => {
+        send({ t: "kicked", payload: { reason } });
+        ws.close();
+      },
+    });
+    send({
+      t: "welcome",
+      payload: { deviceId, role, serverTime: now, snapshot: hub.snapshot() },
+    });
+    hub.broadcast({ t: "devices", payload: { devices: hub.deviceList() } });
+  }
+
+  function handle(msg: ClientMessage, by: string): void {
+    switch (msg.t) {
+      case "ping":
+        send({ t: "pong", payload: {} });
+        hub.touch(by);
+        break;
+      case "patch": {
+        const { entity, id, rev, changes } = msg.payload;
+        const out = hub.patch(entity, id, rev, changes);
+        if (!out.found) {
+          fail(ERR.NOT_FOUND, "고치려는 항목이 없습니다.");
+          return;
+        }
+        if (out.conflict) {
+          send({
+            t: "conflict",
+            payload: { entity, id, serverRev: out.rev, serverValue: out.value },
+          });
+        }
+        hub.broadcast({
+          t: "patched",
+          payload: { entity, id, rev: out.rev, changes, by },
+        });
+        break;
+      }
+      case "itemStart":
+      case "itemEnd": {
+        const it = msg.t === "itemStart"
+          ? hub.itemStart(msg.payload.itemId)
+          : hub.itemEnd(msg.payload.itemId);
+        if (!it) {
+          fail(ERR.NOT_FOUND, "그런 순서가 없습니다.");
+          return;
+        }
+        // 다른 순서가 함께 끝났을 수 있으므로 전체를 다시 보냅니다.
+        hub.broadcast({
+          t: "snapshot",
+          payload: { serverTime: new Date().toISOString(), snapshot: hub.snapshot() },
+        });
+        break;
+      }
+      case "notice": {
+        const n = hub.addNotice(msg.payload.level, msg.payload.text, msg.payload.targets);
+        hub.broadcast({ t: "notice", payload: { notice: n } }, (d) =>
+          n.targets.includes(d.role),
+        );
+        break;
+      }
+      case "ack": {
+        const n = hub.ack(msg.payload.noticeId, by);
+        if (n) {
+          hub.broadcast({
+            t: "patched",
+            payload: { entity: "notice", id: n.id, rev: n.rev, changes: { ackBy: n.ackBy }, by },
+          });
+        }
+        break;
+      }
+      case "publish": {
+        const warnings = hub.publish(msg.payload.snapshot);
+        hub.broadcast({
+          t: "snapshot",
+          payload: { serverTime: new Date().toISOString(), snapshot: hub.snapshot() },
+        });
+        if (warnings.length) {
+          send({ t: "error", payload: { code: "warning", message: warnings.join(" ") } });
+        }
+        break;
+      }
+      case "kick": {
+        const target = hub.getDevice(msg.payload.deviceId);
+        if (!target) {
+          fail(ERR.NOT_FOUND, "그 기기는 이미 끊겼습니다.");
+          return;
+        }
+        target.close("운영자가 연결을 끊었습니다.");
+        break;
+      }
+      default:
+        break;
+    }
+  }
+}

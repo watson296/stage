@@ -5,9 +5,15 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types src/index.ts"
+    "start": "npm run build -w @stage-planner/shared && node src/index.ts"
   },
   "dependencies": {
-    "@stage-planner/shared": "*"
+    "@stage-planner/shared": "*",
+    "qrcode": "^1.5.4",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "@types/ws": "^8.18.2"
   }
 }

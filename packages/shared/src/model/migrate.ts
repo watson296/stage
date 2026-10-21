@@ -486,3 +486,11 @@ function normalizeAngle(a: number): number {
   const r = a % 360;
   return r < 0 ? r + 360 : r;
 }
+
+/**
+ * 이미 v2인 Event를 다시 한 번 정제합니다. 호스트가 받은 내용을 그대로 믿지 않고
+ * 거르는 데 씁니다. 모르는 칸은 버리고 범위를 벗어난 값은 자릅니다.
+ */
+export function sanitizeEvent(raw: unknown): MigrateResult {
+  return migrate(raw);
+}

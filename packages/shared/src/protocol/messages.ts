@@ -20,7 +20,12 @@ export type ClientMessage =
   | { t: "ack"; payload: { noticeId: string } }
   | { t: "itemStart"; payload: { itemId: string } }
   | { t: "itemEnd"; payload: { itemId: string } }
-  | { t: "ping"; payload: Record<string, never> };
+  | { t: "ping"; payload: Record<string, never> }
+  | { t: "notice"; payload: { level: "normal" | "urgent"; text: string; targets: Role[] } }
+  // 운영자가 자기 기기의 작업을 호스트에 올립니다. 호스트가 단일 원본이므로
+  // 이 메시지 뒤에는 모두가 호스트의 내용을 봅니다.
+  | { t: "publish"; payload: { snapshot: unknown } }
+  | { t: "kick"; payload: { deviceId: string } };
 
 // 서버 → 클라이언트
 export type ServerMessage =
