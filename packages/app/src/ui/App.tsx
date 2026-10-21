@@ -10,6 +10,8 @@ import { TimetableScreen } from "./TimetableScreen";
 import { startClock } from "../state/ttState";
 import { HostScreen } from "./HostScreen";
 import * as N from "../net/client";
+import { Dashboard } from "./Dashboard";
+import { DisplayScreen, DISPLAY_KINDS, displayKind, NoticeOverlay } from "./DisplayScreen";
 import { exportPNG, exportPDF } from "../render/export-png";
 import { downloadJSON, parseEvent, pickJSONFile } from "../io/json";
 import { loadEvent } from "../state/autosave";
@@ -102,6 +104,13 @@ export function App() {
     };
   }, []);
 
+  // 운영 화면은 다크, 설계 화면은 라이트입니다(docs/design.md).
+  useEffect(() => {
+    // 운영 화면은 공연장이 어두워 늘 다크입니다. 설계 화면은 기기 설정을 따릅니다.
+    if (S.isDarkScreen(S.screen.value)) document.documentElement.dataset.theme = "dark";
+    else delete document.documentElement.dataset.theme;
+  }, [S.screen.value]);
+
   S.docVersion.value;
   const size = S.stageSize();
   const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -119,6 +128,10 @@ export function App() {
               id="tabPa" onClick={() => (S.screen.value = "pa")}>PA 조언</button>
             <button class={"btn" + (S.screen.value === "timetable" ? " active" : "")}
               id="tabTt" onClick={() => (S.screen.value = "timetable")}>타임테이블</button>
+            <button class={"btn" + (S.screen.value === "dashboard" ? " active" : "")}
+              id="tabDash" onClick={() => (S.screen.value = "dashboard")}>대시보드</button>
+            <button class={"btn" + (S.screen.value === "display" ? " active" : "")}
+              id="tabDisplay" onClick={() => (S.screen.value = "display")}>표시 화면</button>
             <button class={"btn" + (S.screen.value === "host" ? " active" : "")}
               id="tabHost" onClick={() => (S.screen.value = "host")}>
               호스트{N.connState.value === "online" ? " (접속됨)" : ""}
@@ -140,6 +153,13 @@ export function App() {
               </button>
             </>
           )}
+          {S.screen.value === "display" && (
+            <select class="inp" id="dispKind" value={displayKind.value}
+              onChange={(e) =>
+                (displayKind.value = (e.target as HTMLSelectElement).value as typeof displayKind.value)}>
+              {DISPLAY_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.name} 화면</option>)}
+            </select>
+          )}
           <button class="btn" onClick={() => (S.showInfoModal.value = true)}>정보</button>
         </div>
       </header>
@@ -149,6 +169,10 @@ export function App() {
         <TimetableScreen />
       ) : S.screen.value === "host" ? (
         <HostScreen />
+      ) : S.screen.value === "dashboard" ? (
+        <Dashboard />
+      ) : S.screen.value === "display" ? (
+        <DisplayScreen />
       ) : (
         <>
           <Toolbar />
@@ -166,6 +190,7 @@ export function App() {
           </div>
         </>
       )}
+      <NoticeOverlay />
       <NoteModal />
       <CustomModal />
       <InfoModal />

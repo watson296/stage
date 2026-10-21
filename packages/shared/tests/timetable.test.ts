@@ -9,6 +9,7 @@ import {
   newTimetableItem,
   nextStartMin,
   timetableKindInfo,
+  liveView,
   migrate,
   emptyEvent,
   type Timetable,
@@ -235,5 +236,49 @@ describe("순서 종류", () => {
   it("이름이 있고 모르는 값은 기타로 떨어집니다", () => {
     expect(timetableKindInfo("show").name).toBe("공연");
     expect(timetableKindInfo("changeover").name).toBe("전환");
+  });
+});
+
+describe("운영 화면 요약", () => {
+  const base: Timetable = {
+    dayStart: "13:00",
+    items: [
+      item({ id: "a", plannedStart: "13:00", durationMin: 30 }),
+      item({ id: "b", plannedStart: "13:30", durationMin: 60 }),
+    ],
+  };
+
+  it("진행 중인 순서와 남은 시간을 냅니다", () => {
+    const tt: Timetable = {
+      ...base,
+      items: [item({ ...base.items[0], status: "running", actualStart: at(13, 0) }), base.items[1]],
+    };
+    const v = liveView(tt, 13 * 60 + 10);
+    expect(v.current?.item.id).toBe("a");
+    expect(v.remainingMin).toBe(20);
+    expect(v.next?.item.id).toBe("b");
+  });
+
+  it("예정을 넘기면 남은 시간이 음수입니다", () => {
+    const tt: Timetable = {
+      ...base,
+      items: [item({ ...base.items[0], status: "running", actualStart: at(13, 0) }), base.items[1]],
+    };
+    expect(liveView(tt, 13 * 60 + 45).remainingMin).toBe(-15);
+  });
+
+  it("진행 중인 것이 없으면 다음 순서까지 남은 시간을 냅니다", () => {
+    const v = liveView(base, 12 * 60 + 50);
+    expect(v.current).toBeNull();
+    expect(v.next?.item.id).toBe("a");
+    expect(v.startsInMin).toBe(10);
+    expect(v.remainingMin).toBeNull();
+  });
+
+  it("순서가 없으면 전부 비어 있습니다", () => {
+    const v = liveView({ dayStart: "09:00", items: [] }, 600);
+    expect(v.current).toBeNull();
+    expect(v.next).toBeNull();
+    expect(v.delayMin).toBe(0);
   });
 });

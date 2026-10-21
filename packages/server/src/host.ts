@@ -313,6 +313,11 @@ function attach(
         hub.broadcast({ t: "notice", payload: { notice: n } }, (d) =>
           n.targets.includes(d.role),
         );
+        // 보낸 사람도 목록에서 보고 확인 수를 세려면 문서에 들어가야 합니다.
+        hub.broadcast({
+          t: "snapshot",
+          payload: { serverTime: new Date().toISOString(), snapshot: hub.snapshot() },
+        });
         break;
       }
       case "ack": {

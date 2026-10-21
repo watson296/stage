@@ -44,10 +44,17 @@ export class Hub {
     };
   }
 
-  /** 운영자가 자기 작업을 호스트에 올립니다. 내용은 다시 검증합니다. */
+  /**
+   * 운영자가 자기 작업을 호스트에 올립니다. 내용은 다시 검증합니다.
+   *
+   * 공지는 호스트가 만들고 확인 기록도 호스트가 가집니다. 올린 내용으로 덮으면
+   * 방금 보낸 공지가 사라지므로 공지만 호스트 것을 지킵니다.
+   */
   publish(raw: unknown): string[] {
+    const notices = this.doc.notices;
     const { event, warnings } = sanitizeEvent(raw);
     this.doc = event;
+    this.doc.notices = notices;
     return warnings;
   }
 

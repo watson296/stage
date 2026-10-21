@@ -96,9 +96,11 @@ describe("역할별 권한", () => {
 
   it("표시 화면은 읽기만 합니다", () => {
     expect(canDo("display", patch)).toBe(false);
-    expect(canDo("display", ack)).toBe(false);
+    expect(canDo("display", start)).toBe(false);
     // 접속과 살아 있음 확인은 누구나 합니다.
     expect(canDo("display", { t: "ping", payload: {} })).toBe(true);
+    // 공지 확인은 읽음 표시라서 대기실 화면도 할 수 있습니다.
+    expect(canDo("display", ack)).toBe(true);
   });
 
   it("스태프는 공지 확인과 자기 담당 순서만 바꿉니다", () => {

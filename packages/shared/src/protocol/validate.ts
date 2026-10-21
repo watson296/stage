@@ -145,7 +145,7 @@ export interface PermissionContext {
  *
  * - 운영자: 전부
  * - 스태프: 공지 확인과 **자기가 담당인** 순서의 시작·종료
- * - 표시 화면: 읽기만
+ * - 표시 화면: 읽기만. 다만 공지 확인(읽음 표시)은 할 수 있습니다
  */
 export function canDo(
   role: Role,
@@ -154,10 +154,10 @@ export function canDo(
 ): boolean {
   if (msg.t === "hello" || msg.t === "ping") return true;
   if (role === "operator") return true;
-  if (role === "display") return false;
-
-  // staff
+  // 공지 확인은 읽음 표시일 뿐 편집이 아닙니다. 대기실 화면도 긴급 공지를
+  // 직접 닫아야 하므로 표시 화면에도 허용합니다(SPEC 4.2).
   if (msg.t === "ack") return true;
+  if (role === "display") return false;
   if (msg.t === "itemStart" || msg.t === "itemEnd") {
     const owner = ctx.ownerOf?.(msg.payload.itemId) ?? null;
     if (!owner) return false;

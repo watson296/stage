@@ -13,6 +13,8 @@ import {
   type Zone,
   type Timetable,
   type TimetableItem,
+  type Notice as NoticeEntry,
+  type Role,
   isZoneKind,
   zoneNeedsHeight,
   clonePa,
@@ -227,6 +229,7 @@ function migrateV2(root: Record<string, unknown>, warnings: string[]): Event {
 
   base.pa = v2Pa(root.pa, warnings);
   base.timetable = v2Timetable(root.timetable, warnings);
+  base.notices = v2Notices(root.notices);
 
   if (isObject(root.customEquipment)) {
     base.customEquipment = legacyCustom(root.customEquipment, warnings);
@@ -291,6 +294,33 @@ function v2Pa(raw: unknown, warnings: string[]): PaSetup {
   }
 
   return pa;
+}
+
+/**
+ * 공지. 호스트가 만들고 확인 기록(ackBy)도 호스트가 가집니다.
+ * 여기서 흘리면 호스트가 자기 공지를 스스로 지웁니다.
+ */
+function v2Notices(raw: unknown): NoticeEntry[] {
+  const out: NoticeEntry[] = [];
+  for (const rn of Array.isArray(raw) ? raw : []) {
+    if (out.length >= CAPS.MAX_NOTICES) break;
+    if (!isObject(rn)) continue;
+    const targets = (Array.isArray(rn.targets) ? rn.targets : [])
+      .filter((t): t is Role => t === "operator" || t === "staff" || t === "display");
+    out.push({
+      id: asString(rn.id, 40) || `notice-${out.length + 1}`,
+      level: rn.level === "urgent" ? "urgent" : "normal",
+      text: asString(rn.text, CAPS.MAX_STR * 4),
+      targets: targets.length ? targets : ["operator", "staff", "display"],
+      createdAt: asString(rn.createdAt, 40),
+      ackBy: (Array.isArray(rn.ackBy) ? rn.ackBy : [])
+        .filter((v): v is string => typeof v === "string")
+        .slice(0, CAPS.MAX_ACKS)
+        .map((v) => v.slice(0, 40)),
+      rev: Math.max(1, Math.trunc(asNumber(rn.rev, 1))),
+    });
+  }
+  return out;
 }
 
 /** 하루 순서. 자동 저장도 이 함수를 거치므로 여기서 흘리면 순서가 사라집니다. */

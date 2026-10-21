@@ -52,7 +52,12 @@ export const store = new Store();
 export const docVersion = signal(0);
 
 /** 지금 보고 있는 화면. 1~3번 화면은 호스트 없이 혼자 돌아갑니다(SPEC 4). */
-export type Screen = "stage" | "pa" | "timetable" | "host";
+export type Screen = "stage" | "pa" | "timetable" | "host" | "dashboard" | "display";
+
+/** 운영 화면(대시보드, 표시 화면)은 어두운 공연장에 맞춰 다크가 기본입니다. */
+export function isDarkScreen(s: Screen): boolean {
+  return s === "dashboard" || s === "display";
+}
 export const screen = signal<Screen>("stage");
 
 export const mode = signal<Mode>("select");

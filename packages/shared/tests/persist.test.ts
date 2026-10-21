@@ -166,3 +166,29 @@ describe("PA 입력 왕복 저장", () => {
     expect(event.pa.speaker.sensitivityDb).toBeGreaterThan(0);
   });
 });
+
+describe("공지 왕복 저장", () => {
+  it("공지와 확인 기록을 그대로 살린다", () => {
+    const { event } = roundTrip((ev) => {
+      ev.notices = [{
+        id: "n-1", level: "urgent", text: "3팀 대기실로 와 주세요",
+        targets: ["staff", "display"], createdAt: "2026-10-21T04:00:00.000Z",
+        ackBy: ["dev-1", "dev-2"], rev: 3,
+      }];
+    });
+    expect(event.notices).toHaveLength(1);
+    expect(event.notices[0]).toMatchObject({
+      level: "urgent", text: "3팀 대기실로 와 주세요", ackBy: ["dev-1", "dev-2"], rev: 3,
+    });
+    expect(event.notices[0].targets).toEqual(["staff", "display"]);
+  });
+
+  it("모르는 대상과 등급은 기본값으로 둔다", () => {
+    const raw = JSON.parse(JSON.stringify(emptyEvent()));
+    raw.notices = [{ id: "n", level: "아주급함", text: "x", targets: ["사장"], ackBy: [1, "d"] }];
+    const { event } = migrate(raw);
+    expect(event.notices[0].level).toBe("normal");
+    expect(event.notices[0].targets).toEqual(["operator", "staff", "display"]);
+    expect(event.notices[0].ackBy).toEqual(["d"]);
+  });
+});

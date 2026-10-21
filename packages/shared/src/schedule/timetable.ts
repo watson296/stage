@@ -180,3 +180,32 @@ export function newTimetableItem(
     rev: 1,
   };
 }
+
+export interface LiveView {
+  /** 지금 진행 중인 순서. 없으면 아직 시작 안 한 다음 순서를 봅니다. */
+  current: ScheduledRow | null;
+  next: ScheduledRow | null;
+  /** 진행 중인 순서가 끝나기까지 남은 분. 넘겼으면 음수입니다. */
+  remainingMin: number | null;
+  delayMin: number;
+  /** 다음 순서가 시작하기까지 남은 분. 진행 중인 것이 없을 때 씁니다. */
+  startsInMin: number | null;
+}
+
+/**
+ * 운영 화면이 쓰는 요약. 지금 순서와 남은 시간, 다음 순서, 누적 지연입니다.
+ * 호스트에 붙어 있으면 `nowMin`에 서버 시각을 넣어 모두 같은 숫자를 봅니다.
+ */
+export function liveView(tt: Timetable, nowMin: number): LiveView {
+  const r = schedule(tt, nowMin);
+  const current = r.runningIndex != null ? r.rows[r.runningIndex] : null;
+  const nextRow =
+    r.nextIndex != null && r.nextIndex !== r.runningIndex ? r.rows[r.nextIndex] : null;
+  return {
+    current,
+    next: nextRow,
+    remainingMin: current ? current.startMin + duration(current.item) - nowMin : null,
+    delayMin: r.delayMin,
+    startsInMin: !current && nextRow ? nextRow.startMin - nowMin : null,
+  };
+}
