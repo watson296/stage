@@ -38,6 +38,17 @@ Pretendard
   https://github.com/orioncactus/pretendard
   한글 완성형과 영문·숫자만 담은 서브셋을 오프라인 사용을 위해 포함합니다.
 
+호스트 서버 의존성 (packages/server, 브라우저 앱에는 들어가지 않습니다)
+
+  ws — MIT License. Copyright (c) 2011 Einar Otto Stangvik 외.
+    https://github.com/websockets/ws
+    WebSocket 서버 구현에 씁니다.
+
+  qrcode — MIT License. Copyright (c) 2012 Ryan Day 외.
+    https://github.com/soldair/node-qrcode
+    접속 주소 QR 코드를 SVG로 만드는 데 씁니다.
+    (전이 의존성 dijkstrajs, pngjs, yargs 등은 모두 MIT 또는 ISC입니다.)
+
 ─────────────────────────────────────────────────────────────────────
 This product includes brand assets (the Saegyeol logo and the
 "새결 / SAEGYEOL" name and wordmark) that are trademarks of Team Saegyeol

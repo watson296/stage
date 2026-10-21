@@ -812,3 +812,49 @@ select.inp {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* 호스트·연결 화면 */
+.code {
+  font-family: var(--font-mono);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+.qr-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.qr {
+  width: 140px;
+  height: 140px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+}
+.role-help {
+  font-weight: 400;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* 읽기 전용(운영자가 아닌 역할로 호스트에 붙었을 때) */
+.ro-note {
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+.pa-table.ro input,
+.pa-table.ro select {
+  pointer-events: none;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+fieldset.pa {
+  border: 0;
+  margin: 0;
+}

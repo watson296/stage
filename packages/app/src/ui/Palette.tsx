@@ -1,5 +1,6 @@
 import { EQUIPMENT, PALETTE_GROUPS, CATEGORIES } from "@stage-planner/shared";
 import * as S from "../state/appState";
+import { readOnly } from "../net/client";
 
 /** 팔레트에서 캔버스로 끌어놓기(HTML5 DnD 아님) + 탭 선택 */
 function paletteDrag(key: string) {
@@ -62,6 +63,9 @@ function Item(props: { keyName: string; name: string; color: string; onDelete?: 
 }
 
 export function Palette() {
+  // 읽기 전용으로 붙은 기기는 장비를 놓을 수 없습니다.
+  if (readOnly()) return null;
+
   S.docVersion.value;
   S.placingType.value;
   const custom = Object.entries(S.currentEvent().customEquipment);

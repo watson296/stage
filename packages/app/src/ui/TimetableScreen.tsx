@@ -9,6 +9,7 @@ import {
 } from "@stage-planner/shared";
 import * as S from "../state/appState";
 import * as T from "../state/ttState";
+import { myRole, readOnly, sendItemEnd, sendItemStart } from "../net/client";
 
 /** 글자 입력. 고치는 동안을 되돌리기 한 단계로 묶습니다. */
 function textHandlers(apply: (v: string) => void) {
@@ -54,6 +55,9 @@ function Head() {
         <input class="inp" type="time" id="dayStart" value={tt.dayStart}
           {...textHandlers(T.setDayStart)} />
       </label>
+      {readOnly() && (
+        <span class="ro-note">읽기 전용입니다. 진행 기록은 담당인 순서만 바꿀 수 있습니다.</span>
+      )}
       <div class="tt-sum">
         <span id="ttDelay" class={r.delayMin > 0 ? "tt-late" : ""}>
           {r.rows.length === 0 ? "순서가 없습니다" : delayLabel(r.delayMin)}
@@ -61,7 +65,7 @@ function Head() {
         {r.endMin != null && <span id="ttEnd">끝 예상 {timeLabel(r.endMin)}</span>}
       </div>
       <div class="tt-acts">
-        <label>순서 추가
+        {readOnly() ? null : <label>순서 추가
           <select class="inp" id="addKind" value=""
             onChange={(e) => {
               const sel = e.target as HTMLSelectElement;
@@ -71,16 +75,28 @@ function Head() {
             <option value="">고르기</option>
             {TIMETABLE_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.name}</option>)}
           </select>
-        </label>
+        </label>}
         <button class={"btn" + (T.view.value === "list" ? " active" : "")}
           id="viewList" onClick={() => (T.view.value = "list")}>목록</button>
         <button class={"btn" + (T.view.value === "timeline" ? " active" : "")}
           id="viewTimeline" onClick={() => (T.view.value = "timeline")}>타임라인</button>
-        <button class="btn" id="ttUndo" disabled={!S.store.canUndo()}
-          onClick={() => S.store.undo()}>되돌리기</button>
+        {!readOnly() && (
+          <button class="btn" id="ttUndo" disabled={!S.store.canUndo()}
+            onClick={() => S.store.undo()}>되돌리기</button>
+        )}
       </div>
     </div>
   );
+}
+
+/** 호스트에 붙어 있으면 서버로 보내고, 혼자 쓸 때는 바로 기록합니다. */
+function startNow(id: string): void {
+  if (myRole.value) sendItemStart(id);
+  else T.startItem(id);
+}
+function endNow(id: string): void {
+  if (myRole.value) sendItemEnd(id);
+  else T.endItem(id);
 }
 
 function StatusCell({ row }: { row: ScheduledRow }) {
@@ -89,7 +105,7 @@ function StatusCell({ row }: { row: ScheduledRow }) {
     return (
       <>
         <span class="tt-running">진행 중</span>
-        <button class="btn" onClick={() => T.endItem(it.id)}>종료</button>
+        <button class="btn" onClick={() => endNow(it.id)}>종료</button>
       </>
     );
   }
@@ -97,11 +113,13 @@ function StatusCell({ row }: { row: ScheduledRow }) {
     return (
       <>
         <span class="muted">끝남</span>
-        <button class="btn" onClick={() => T.clearRecord(it.id)}>기록 지우기</button>
+        {!readOnly() && (
+          <button class="btn" onClick={() => T.clearRecord(it.id)}>기록 지우기</button>
+        )}
       </>
     );
   }
-  return <button class="btn btn-accent" onClick={() => T.startItem(it.id)}>시작</button>;
+  return <button class="btn btn-accent" onClick={() => startNow(it.id)}>시작</button>;
 }
 
 function Row({ row, plans }: { row: ScheduledRow; plans: { id: string; name: string }[] }) {
@@ -143,13 +161,15 @@ function Row({ row, plans }: { row: ScheduledRow; plans: { id: string; name: str
         </td>
         <td><div class="tt-cell"><StatusCell row={row} /></div></td>
         <td>
-          <div class="tt-cell">
-            <button class="btn" onClick={() => T.moveBy(it.id, -1)}>위로</button>
-            <button class="btn" onClick={() => T.moveBy(it.id, 1)}>아래로</button>
-            <button class="btn" onClick={() => (T.selectedId.value = open ? null : it.id)}>
-              {open ? "접기" : "자세히"}
-            </button>
-          </div>
+          {!readOnly() && (
+            <div class="tt-cell">
+              <button class="btn" onClick={() => T.moveBy(it.id, -1)}>위로</button>
+              <button class="btn" onClick={() => T.moveBy(it.id, 1)}>아래로</button>
+              <button class="btn" onClick={() => (T.selectedId.value = open ? null : it.id)}>
+                {open ? "접기" : "자세히"}
+              </button>
+            </div>
+          )}
         </td>
       </tr>
       {open && (
@@ -189,7 +209,7 @@ function ListView() {
     return <p class="muted" id="ttEmpty">순서를 추가하면 예상 시각을 계산합니다.</p>;
   }
   return (
-    <table class="pa-table tt-table" id="ttTable">
+    <table class={"pa-table tt-table" + (readOnly() ? " ro" : "")} id="ttTable">
       <thead>
         <tr>
           <th>번호</th><th>종류</th><th>이름</th><th>계획</th><th>길이(분)</th>

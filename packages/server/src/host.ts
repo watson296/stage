@@ -21,6 +21,7 @@ import {
   FailureLimiter,
   RateCounter,
   makeAccessCodes,
+  reuseOrMakeCodes,
   roleForCode,
 } from "./codes.ts";
 import { isPrivateAddress, localAddresses, normalizeIp, preferredAddress } from "./net.ts";
@@ -38,6 +39,8 @@ export interface HostOptions {
 
 export interface HostHandle {
   port: number;
+  /** 파일로 저장할 때 코드까지 함께 남기려면 이 값을 씁니다. */
+  accessCodes: import("@stage-planner/shared").AccessCodes;
   url: string;
   codes: { operator: string; staff: string; display: string };
   hub: Hub;
@@ -66,7 +69,8 @@ function remoteIp(req: IncomingMessage): string {
 export async function startHost(opts: HostOptions = {}): Promise<HostHandle> {
   const port = opts.port ?? 7321;
   const hub = new Hub(opts.doc);
-  const codes = makeAccessCodes();
+  // 호스트를 껐다 켜도 같은 코드를 씁니다. 공연 파일에 코드가 들어 있으면 그것을 씁니다.
+  const codes = reuseOrMakeCodes(opts.doc?.accessCodes);
   const limiter = new FailureLimiter();
   const address = opts.address ?? preferredAddress(localAddresses());
   const url = `http://${address}:${port}/`;
@@ -104,6 +108,7 @@ export async function startHost(opts: HostOptions = {}): Promise<HostHandle> {
     port,
     url,
     codes: { operator: codes.operator, staff: codes.staff, display: codes.display },
+    accessCodes: codes,
     hub,
     server,
     close: () =>

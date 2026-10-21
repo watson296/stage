@@ -8,6 +8,7 @@ import {
 import * as S from "../state/appState";
 import * as P from "../state/paState";
 import { addPreset, presetSpec, removePreset } from "../state/presets";
+import { readOnly } from "../net/client";
 
 /** 숫자 입력 한 칸. 고치는 동안을 되돌리기 한 단계로 묶습니다. */
 function numHandlers(apply: (v: number) => void) {
@@ -304,9 +305,11 @@ function PowerCard() {
 
 export function PaScreen() {
   S.docVersion.value;
+  const ro = readOnly();
   return (
-    <div class="pa">
+    <fieldset class="pa" disabled={ro}>
       <div class="pa-col">
+        {ro && <p class="ro-note">읽기 전용입니다. 고치려면 운영자로 접속해 주세요.</p>}
         <VenueCard />
         <LineupCard />
         <SpeakerCard />
@@ -322,6 +325,6 @@ export function PaScreen() {
           </ul>
         </section>
       </div>
-    </div>
+    </fieldset>
   );
 }

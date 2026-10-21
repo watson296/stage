@@ -1,11 +1,29 @@
 import { ZONE_KINDS, type ZoneKind } from "@stage-planner/shared";
 import * as S from "../state/appState";
+import { readOnly } from "../net/client";
 
 export function Toolbar() {
   S.docVersion.value;
   const m = S.mode.value;
   const size = S.stageSize();
   const r1 = (v: number) => Math.round(v * 10) / 10;
+
+  // 읽기 전용으로 붙은 기기에는 보기 관련 단추만 둡니다.
+  if (readOnly()) {
+    return (
+      <div class="tbar">
+        <span class="ro-note">읽기 전용입니다. 고치려면 운영자로 접속해 주세요.</span>
+        <div class="sep" />
+        <label>
+          <input type="checkbox" id="chkZones" checked={S.showZones.value}
+            onChange={(e) => (S.showZones.value = (e.target as HTMLInputElement).checked)} /> 구역 표시
+        </label>
+        <button class={"btn" + (S.autoFit.value ? " active" : "")} id="btnFit"
+          onClick={() => S.fit()}>맞춤</button>
+      </div>
+    );
+  }
+
   return (
     <div class="tbar">
       <button class={"btn" + (m === "select" || m === "place" ? " active" : "")}

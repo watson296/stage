@@ -83,7 +83,10 @@ console.log("  끝내려면 Ctrl+C 를 누릅니다.");
 async function saveAndExit(): Promise<void> {
   if (args.file) {
     try {
-      await writeFile(resolve(args.file), JSON.stringify(host.hub.snapshot(), null, 2), "utf8");
+      // 이 파일에는 접속 코드가 들어갑니다. 껐다 켜도 같은 코드를 쓰기 위해서입니다.
+      // 다른 사람에게 줄 때는 앱의 저장(JSON 내보내기)을 쓰세요. 거기에는 코드가 빠집니다.
+      const doc = { ...host.hub.snapshot(), accessCodes: host.accessCodes };
+      await writeFile(resolve(args.file), JSON.stringify(doc, null, 2), "utf8");
       console.log(`\n${args.file} 에 저장했습니다.`);
     } catch (e) {
       console.log(`\n저장하지 못했습니다: ${(e as Error).message}`);

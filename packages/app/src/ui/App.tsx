@@ -8,6 +8,8 @@ import { NoteModal, CustomModal, InfoModal, Toasts } from "./Modals";
 import { PaScreen } from "./PaScreen";
 import { TimetableScreen } from "./TimetableScreen";
 import { startClock } from "../state/ttState";
+import { HostScreen } from "./HostScreen";
+import * as N from "../net/client";
 import { exportPNG, exportPDF } from "../render/export-png";
 import { downloadJSON, parseEvent, pickJSONFile } from "../io/json";
 import { loadEvent } from "../state/autosave";
@@ -117,6 +119,10 @@ export function App() {
               id="tabPa" onClick={() => (S.screen.value = "pa")}>PA 조언</button>
             <button class={"btn" + (S.screen.value === "timetable" ? " active" : "")}
               id="tabTt" onClick={() => (S.screen.value = "timetable")}>타임테이블</button>
+            <button class={"btn" + (S.screen.value === "host" ? " active" : "")}
+              id="tabHost" onClick={() => (S.screen.value = "host")}>
+              호스트{N.connState.value === "online" ? " (접속됨)" : ""}
+            </button>
           </nav>
         </div>
         <div class="hdr-r">
@@ -141,6 +147,8 @@ export function App() {
         <PaScreen />
       ) : S.screen.value === "timetable" ? (
         <TimetableScreen />
+      ) : S.screen.value === "host" ? (
+        <HostScreen />
       ) : (
         <>
           <Toolbar />

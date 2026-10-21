@@ -52,7 +52,7 @@ export const store = new Store();
 export const docVersion = signal(0);
 
 /** 지금 보고 있는 화면. 1~3번 화면은 호스트 없이 혼자 돌아갑니다(SPEC 4). */
-export type Screen = "stage" | "pa" | "timetable";
+export type Screen = "stage" | "pa" | "timetable" | "host";
 export const screen = signal<Screen>("stage");
 
 export const mode = signal<Mode>("select");

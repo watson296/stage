@@ -62,8 +62,11 @@ interface Entry {
  */
 export class FailureLimiter {
   private map = new Map<string, Entry>();
+  private opts: LimiterOptions;
 
-  constructor(private opts: LimiterOptions = DEFAULT_LIMITS) {}
+  constructor(opts: LimiterOptions = DEFAULT_LIMITS) {
+    this.opts = opts;
+  }
 
   /** 지금 막혀 있으면 남은 밀리초, 아니면 0. */
   lockedFor(key: string, now = Date.now()): number {
@@ -104,8 +107,11 @@ export const DEFAULT_RATE: RateOptions = { maxPerWindow: 120, windowMs: 10_000 }
 export class RateCounter {
   private count = 0;
   private start = 0;
+  private opts: RateOptions;
 
-  constructor(private opts: RateOptions = DEFAULT_RATE) {}
+  constructor(opts: RateOptions = DEFAULT_RATE) {
+    this.opts = opts;
+  }
 
   /** 보내도 되면 true. 넘으면 false이고 서버가 연결을 끊습니다. */
   allow(now = Date.now()): boolean {
@@ -116,4 +122,16 @@ export class RateCounter {
     this.count++;
     return this.count <= this.opts.maxPerWindow;
   }
+}
+
+/**
+ * 이미 있는 코드가 쓸 만하면 그대로 씁니다. 호스트를 껐다 켜도 같은 코드를
+ * 쓰기 위해서입니다(SPEC 5). 하나라도 모양이 아니면 셋 다 새로 만듭니다.
+ */
+export function reuseOrMakeCodes(prev?: AccessCodes): AccessCodes {
+  const ok = (v: unknown): boolean => typeof v === "string" && /^\d{6}$/.test(v);
+  if (prev && ok(prev.operator) && ok(prev.staff) && ok(prev.display)) {
+    return { ...prev };
+  }
+  return makeAccessCodes();
 }
