@@ -11,6 +11,8 @@ import {
   type ArcSegment,
   type Vec2,
   type Zone,
+  type Timetable,
+  type TimetableItem,
   isZoneKind,
   zoneNeedsHeight,
   clonePa,
@@ -18,6 +20,8 @@ import {
   type PaSetup,
 } from "./types";
 import { isGenre, instrumentInfo, type LineupEntry } from "../audio/lineup";
+import { isTimetableKind, MAX_DURATION_MIN } from "../schedule/timetable";
+import { parseHHMM } from "../schedule/time";
 import { findVariant } from "./equipment";
 import {
   CAPS,
@@ -222,6 +226,7 @@ function migrateV2(root: Record<string, unknown>, warnings: string[]): Event {
   else warnings.push("배치도가 없어 빈 배치도를 하나 만들었습니다.");
 
   base.pa = v2Pa(root.pa, warnings);
+  base.timetable = v2Timetable(root.timetable, warnings);
 
   if (isObject(root.customEquipment)) {
     base.customEquipment = legacyCustom(root.customEquipment, warnings);
@@ -286,6 +291,52 @@ function v2Pa(raw: unknown, warnings: string[]): PaSetup {
   }
 
   return pa;
+}
+
+/** 하루 순서. 자동 저장도 이 함수를 거치므로 여기서 흘리면 순서가 사라집니다. */
+function v2Timetable(raw: unknown, warnings: string[]): Timetable {
+  const out: Timetable = { dayStart: "09:00", items: [] };
+  if (!isObject(raw)) return out;
+
+  const ds = asString(raw.dayStart, 5);
+  out.dayStart = parseHHMM(ds) == null ? out.dayStart : ds;
+
+  let dropped = 0;
+  for (const ri of Array.isArray(raw.items) ? raw.items : []) {
+    if (out.items.length >= CAPS.MAX_TIMETABLE_ITEMS) break;
+    const it = v2TimetableItem(ri, out.items.length);
+    if (it) out.items.push(it);
+    else dropped++;
+  }
+  if (dropped) warnings.push(`읽을 수 없는 순서 ${dropped}개를 뺐습니다.`);
+  return out;
+}
+
+function v2TimetableItem(raw: unknown, idx: number): TimetableItem | null {
+  if (!isObject(raw)) return null;
+  const kind = isTimetableKind(raw.kind) ? raw.kind : "other";
+  const planned = asString(raw.plannedStart, 5);
+  const status = raw.status;
+  const actualStart = asString(raw.actualStart, 40) || null;
+  const actualEnd = asString(raw.actualEnd, 40) || null;
+  return {
+    id: asString(raw.id, 40) || `item-${idx + 1}`,
+    kind,
+    title: asString(raw.title),
+    plannedStart: parseHHMM(planned) == null ? "00:00" : planned,
+    durationMin: Math.round(clampNum(raw.durationMin, 0, MAX_DURATION_MIN, 30)),
+    owner: asString(raw.owner),
+    memo: asString(raw.memo, CAPS.MAX_STR * 4),
+    stagePlanId: asString(raw.stagePlanId, 40) || null,
+    actualStart,
+    actualEnd,
+    // 시작 기록이 없는데 진행 중이라고 적힌 파일은 믿지 않습니다.
+    status:
+      (status === "running" && actualStart) || (status === "done" && actualStart)
+        ? status
+        : "pending",
+    rev: Math.max(1, Math.trunc(asNumber(raw.rev, 1))),
+  };
 }
 
 function v2Plan(raw: unknown, idx: number, warnings: string[]): StagePlan | null {

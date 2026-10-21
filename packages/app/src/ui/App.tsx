@@ -6,6 +6,8 @@ import { Toolbar } from "./Toolbar";
 import { Props } from "./Props";
 import { NoteModal, CustomModal, InfoModal, Toasts } from "./Modals";
 import { PaScreen } from "./PaScreen";
+import { TimetableScreen } from "./TimetableScreen";
+import { startClock } from "../state/ttState";
 import { exportPNG, exportPDF } from "../render/export-png";
 import { downloadJSON, parseEvent, pickJSONFile } from "../io/json";
 import { loadEvent } from "../state/autosave";
@@ -88,11 +90,13 @@ export function App() {
       if (e.key === "r" || e.key === "R") S.rotateSelected();
     };
     document.addEventListener("keydown", onKey);
+    const stopClock = startClock();
     const onUnload = () => void S.autosaver.flush();
     window.addEventListener("beforeunload", onUnload);
     return () => {
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("beforeunload", onUnload);
+      stopClock();
     };
   }, []);
 
@@ -111,6 +115,8 @@ export function App() {
               id="tabStage" onClick={() => (S.screen.value = "stage")}>무대 설계</button>
             <button class={"btn" + (S.screen.value === "pa" ? " active" : "")}
               id="tabPa" onClick={() => (S.screen.value = "pa")}>PA 조언</button>
+            <button class={"btn" + (S.screen.value === "timetable" ? " active" : "")}
+              id="tabTt" onClick={() => (S.screen.value = "timetable")}>타임테이블</button>
           </nav>
         </div>
         <div class="hdr-r">
@@ -133,6 +139,8 @@ export function App() {
       </header>
       {S.screen.value === "pa" ? (
         <PaScreen />
+      ) : S.screen.value === "timetable" ? (
+        <TimetableScreen />
       ) : (
         <>
           <Toolbar />

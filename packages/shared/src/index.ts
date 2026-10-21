@@ -14,3 +14,5 @@ export * from "./audio/speaker";
 export * from "./audio/lineup";
 export * from "./audio/channels";
 export * from "./audio/system";
+export * from "./schedule/time";
+export * from "./schedule/timetable";

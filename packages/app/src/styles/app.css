@@ -644,3 +644,171 @@ select.inp {
     grid-template-columns: 1fr;
   }
 }
+
+/* 타임테이블 */
+.tt {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+}
+.tt > .card {
+  min-width: 0;
+}
+.tt-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.tt-sum {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.tt-acts {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.tt-acts label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.tt-late {
+  color: var(--accent);
+  font-weight: 700;
+}
+.tt-running {
+  color: var(--accent);
+  font-weight: 700;
+}
+.tt-table .inp {
+  width: 100%;
+  min-width: 64px;
+}
+.tt-table .inp.num {
+  width: 72px;
+}
+.tt-table .inp.wide {
+  min-width: 140px;
+}
+.tt-table td {
+  vertical-align: top;
+}
+.tt-when {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tt-now > td {
+  background: var(--sg-mist);
+}
+.tt-cell {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tt-table td {
+  padding: 4px 6px;
+}
+.tt-table .btn {
+  min-height: 30px;
+  padding: 4px 8px;
+}
+.tt-detail > td {
+  padding-top: 0;
+}
+.tt-detail-in {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+}
+
+/* 가로 타임라인 */
+.tl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tl-ticks {
+  position: relative;
+  height: 18px;
+  margin-left: 140px;
+  border-bottom: 1px solid var(--border);
+}
+.tl-tick {
+  position: absolute;
+  top: 0;
+  border-left: 1px solid var(--border);
+  height: 18px;
+  padding-left: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tl-now {
+  position: absolute;
+  top: 0;
+  bottom: -4px;
+  width: 2px;
+  background: var(--accent);
+}
+.tl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.tl-name {
+  width: 132px;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-track {
+  position: relative;
+  flex: 1;
+  height: 26px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+.tl-bar {
+  position: absolute;
+  top: 3px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 10px;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+/* 종류는 색이 아니라 농도로 구분합니다. */
+.tl-bar.tone-strong {
+  background: var(--sg-navy);
+}
+.tl-bar.tone-mid {
+  background: var(--sg-tide);
+}
+.tl-bar.tone-weak {
+  background: var(--sg-slate);
+}
+.tl-bar-now {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
