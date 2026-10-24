@@ -1,4 +1,4 @@
-import type { Event } from "@stage-planner/shared";
+import { migrate, type Event } from "@stage-planner/shared";
 
 // IndexedDB에 작업을 자동 저장합니다. 저장소를 못 쓰면(사생활 모드 등)
 // 조용히 넘기지 않고 onError로 알립니다. iPad Safari는 저장소를 비울 수
@@ -36,16 +36,22 @@ export async function saveEvent(doc: Event): Promise<void> {
   db.close();
 }
 
-export async function loadEvent(): Promise<Event | null> {
+/**
+ * 저장해 둔 작업을 꺼냅니다. **반드시 migrate를 거칩니다.** 저장된 문서는 옛
+ * 버전이 만든 것일 수 있어서, 그대로 쓰면 그때는 없던 칸(PA 입력, 공지 등)이
+ * 빠진 채로 화면에 올라가 화면이 통째로 비어 보입니다.
+ */
+export async function loadEvent(): Promise<{ event: Event; warnings: string[] } | null> {
   const db = await openDB();
-  const result = await new Promise<Event | null>((resolve, reject) => {
+  const raw = await new Promise<unknown>((resolve, reject) => {
     const tx = db.transaction(STORE, "readonly");
     const req = tx.objectStore(STORE).get(KEY);
-    req.onsuccess = () => resolve((req.result as Event) ?? null);
+    req.onsuccess = () => resolve(req.result ?? null);
     req.onerror = () => reject(req.error ?? new Error("불러오기에 실패했습니다."));
   });
   db.close();
-  return result;
+  if (raw == null) return null;
+  return migrate(raw);
 }
 
 export interface Autosaver {

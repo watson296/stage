@@ -50,10 +50,10 @@ export function App() {
     // 저장된 작업 복원
     loadEvent()
       .then((saved) => {
-        if (saved) {
-          S.store.replace(saved);
-          S.fit();
-        }
+        if (!saved) return;
+        S.store.replace(saved.event);
+        S.fit();
+        saved.warnings.forEach((w) => S.toast(w));
       })
       .catch((e: unknown) => {
         S.toast(
