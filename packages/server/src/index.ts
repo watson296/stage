@@ -4,28 +4,39 @@
 //
 // 접속 코드는 이 화면에만 찍습니다. 로그 파일이나 내보내기에는 남기지 않습니다.
 
+import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { migrate, type Event } from "@stage-planner/shared";
+import { buildJoinUrl, migrate, type Event, type Role } from "@stage-planner/shared";
 import { startHost } from "./host.ts";
-import { localAddresses, isLoopback } from "./net.ts";
+import { localAddresses, isLoopback, preferredAddress } from "./net.ts";
+import { startMdns } from "./mdns.ts";
 
 interface Args {
   port: number;
   file: string | null;
   allowPublic: boolean;
   address: string | null;
+  /** 이름 접속에 쓸 이름. `stage` → `stage.local` */
+  name: string;
+  /** 뜰 때 호스트 안내 페이지를 브라우저로 열지. */
+  open: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const out: Args = { port: 7321, file: null, allowPublic: false, address: null };
+  const out: Args = {
+    port: 7321, file: null, allowPublic: false, address: null,
+    name: "stage", open: true,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--port") out.port = Number(argv[++i]) || out.port;
     else if (a === "--file") out.file = argv[++i] ?? null;
     else if (a === "--address") out.address = argv[++i] ?? null;
     else if (a === "--allow-public") out.allowPublic = true;
+    else if (a === "--name") out.name = argv[++i] ?? out.name;
+    else if (a === "--no-open") out.open = false;
   }
   return out;
 }
@@ -42,29 +53,65 @@ async function loadDoc(file: string | null): Promise<{ doc?: Event; warnings: st
   }
 }
 
+/** 기본 브라우저로 주소를 엽니다. 실패해도 서버는 그대로 갑니다. */
+function openBrowser(target: string): void {
+  try {
+    const [cmd, cmdArgs] =
+      process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", target]]
+        : process.platform === "darwin"
+          ? ["open", [target]]
+          : ["xdg-open", [target]];
+    spawn(cmd, cmdArgs, { stdio: "ignore", detached: true }).unref();
+  } catch {
+    // 브라우저가 없거나 열 수 없는 환경이면 주소만 보고 직접 열면 됩니다.
+  }
+}
+
 const args = parseArgs(process.argv.slice(2));
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(here, "../../app/dist");
 const { doc, warnings } = await loadDoc(args.file);
+
+const address = args.address ?? preferredAddress(localAddresses());
+
+// 이름 접속은 보조입니다. 5353을 다른 프로그램이 쓰고 있어도 서버는 뜹니다.
+const mdns = startMdns({ name: args.name, address });
 
 const host = await startHost({
   port: args.port,
   appDir,
   doc,
   allowPublic: args.allowPublic,
-  address: args.address ?? undefined,
+  address,
+  nameHost: mdns.hostname ?? undefined,
+  mdnsProblem: mdns.problem,
 });
 
 warnings.forEach((w) => console.log(`주의: ${w}`));
 
+const nameBase = mdns.hostname ? `http://${mdns.hostname}:${host.port}/` : null;
+const link = (role: Role): string => buildJoinUrl(host.url, role, host.codes[role]);
+
 console.log("");
 console.log("  호스트를 시작했습니다.");
-console.log(`  접속 주소: ${host.url}`);
 console.log("");
-console.log("  접속 코드 (이 화면에만 보여 줍니다)");
-console.log(`    운영자    ${host.codes.operator}`);
-console.log(`    스태프    ${host.codes.staff}`);
-console.log(`    표시 화면 ${host.codes.display}`);
+console.log("  접속 주소");
+console.log(`    이름   ${nameBase ?? "(쓸 수 없습니다)"}`);
+console.log(`    IP     ${host.url}`);
+if (mdns.problem) console.log(`    ${mdns.problem}`);
+console.log("");
+console.log("  역할별 링크 (이 화면에만 보여 줍니다)");
+console.log(`    FOH      ${link("operator")}`);
+console.log(`    운영팀   ${link("staff")}`);
+console.log(`    대기실   ${link("display")}`);
+console.log("");
+console.log("  접속 코드");
+console.log(`    FOH      ${host.codes.operator}`);
+console.log(`    운영팀   ${host.codes.staff}`);
+console.log(`    대기실   ${host.codes.display}`);
+console.log("");
+console.log(`  QR과 복사 단추는 http://localhost:${host.port}/host 에서 볼 수 있습니다.`);
 console.log("");
 
 const others = localAddresses().filter((a) => !isLoopback(a.address));
@@ -80,6 +127,8 @@ if (args.allowPublic) {
 }
 console.log("  끝내려면 Ctrl+C 를 누릅니다.");
 
+if (args.open) openBrowser(`http://localhost:${host.port}/host`);
+
 async function saveAndExit(): Promise<void> {
   if (args.file) {
     try {
@@ -92,6 +141,7 @@ async function saveAndExit(): Promise<void> {
       console.log(`\n저장하지 못했습니다: ${(e as Error).message}`);
     }
   }
+  mdns.stop();
   await host.close();
   process.exit(0);
 }
