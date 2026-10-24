@@ -18,6 +18,9 @@ export const ERR = {
 
 export type ErrorCode = (typeof ERR)[keyof typeof ERR];
 
+/** 접속 코드의 모양. 여섯 자리 숫자입니다(SPEC 10). */
+export const CODE_RE = /^\d{6}$/;
+
 export interface ParseError {
   code: ErrorCode;
   message: string;
