@@ -25,6 +25,12 @@ import {
   roleForCode,
 } from "./codes.ts";
 import { isPrivateAddress, localAddresses, normalizeIp, preferredAddress } from "./net.ts";
+import {
+  hostStateJson,
+  isHostPageAllowed,
+  renderHostPage,
+  type HostPageView,
+} from "./hostPage.ts";
 
 export interface HostOptions {
   port?: number;
@@ -35,10 +41,16 @@ export interface HostOptions {
   allowPublic?: boolean;
   /** 접속 주소를 만들 때 쓸 IP. 없으면 자동으로 고릅니다. */
   address?: string;
+  /** 이름 접속에 쓸 주소(stage.local 등). 없으면 이름 칸을 비웁니다. */
+  nameHost?: string;
+  /** 이름 접속을 못 쓰는 이유. 호스트 안내 페이지에 그대로 보여 줍니다. */
+  mdnsProblem?: string | null;
 }
 
 export interface HostHandle {
   port: number;
+  /** 코드를 새로 만듭니다. 이미 붙어 있는 기기는 끊지 않습니다. */
+  rotateCodes: () => { operator: string; staff: string; display: string };
   /** 파일로 저장할 때 코드까지 함께 남기려면 이 값을 씁니다. */
   accessCodes: import("@stage-planner/shared").AccessCodes;
   url: string;
@@ -75,6 +87,16 @@ export async function startHost(opts: HostOptions = {}): Promise<HostHandle> {
   const address = opts.address ?? preferredAddress(localAddresses());
   const url = `http://${address}:${port}/`;
 
+  const nameBase = opts.nameHost ? `http://${opts.nameHost}:${port}/` : null;
+  const view = (): HostPageView => ({
+    nameBase,
+    ipBase: url,
+    codes: { operator: codes.operator, staff: codes.staff, display: codes.display },
+    devices: hub.deviceList(),
+    mdnsProblem: opts.mdnsProblem ?? null,
+    rotatedAt: codes.rotatedAt,
+  });
+
   const server = createServer((req, res) => {
     const ip = remoteIp(req);
     if (!opts.allowPublic && !isPrivateAddress(ip)) {
@@ -82,8 +104,20 @@ export async function startHost(opts: HostOptions = {}): Promise<HostHandle> {
       res.end("같은 네트워크 안에서만 접속할 수 있습니다.");
       return;
     }
+    const path = (req.url ?? "/").split("?")[0];
+    if (path === "/host" || path.startsWith("/host/")) {
+      serveHostPage(req, res, path, ip, view, rotate);
+      return;
+    }
     void serveStatic(req, res, opts.appDir, url);
   });
+
+  /** 코드만 새로 만듭니다. 이미 인증된 연결은 그대로 둡니다(붙어 있는 기기 유지). */
+  function rotate(): { operator: string; staff: string; display: string } {
+    // 같은 객체를 고쳐 써야 연결 처리기가 보는 코드도 함께 바뀝니다.
+    Object.assign(codes, makeAccessCodes());
+    return { operator: codes.operator, staff: codes.staff, display: codes.display };
+  }
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
 
@@ -107,6 +141,7 @@ export async function startHost(opts: HostOptions = {}): Promise<HostHandle> {
   return {
     port,
     url,
+    rotateCodes: rotate,
     codes: { operator: codes.operator, staff: codes.staff, display: codes.display },
     accessCodes: codes,
     hub,
@@ -129,7 +164,14 @@ async function serveStatic(
   const path = (req.url ?? "/").split("?")[0];
 
   if (path === "/qr.svg") {
-    const svg = await QRCode.toString(url, { type: "svg", margin: 1 });
+    const want = new URL(req.url ?? "/", url).searchParams.get("d");
+    const data = want == null ? url : qrPayload(want, url);
+    if (data == null) {
+      res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+      res.end("이 호스트의 주소만 QR로 만듭니다.");
+      return;
+    }
+    const svg = await QRCode.toString(data, { type: "svg", margin: 1 });
     res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8" });
     res.end(svg);
     return;
@@ -366,4 +408,64 @@ function attach(
         break;
     }
   }
+}
+
+/** QR 최대 길이. 임의 문자열 QR 생성기로 쓰이지 않게 막습니다. */
+const QR_MAX = 256;
+
+/**
+ * QR에 담아도 되는 주소인지. **이 호스트를 가리키는 http 주소**만 허용합니다.
+ * 포트가 같으면 호스트 이름은 다를 수 있습니다(IP와 stage.local 둘 다 씁니다).
+ */
+export function qrPayload(want: string, selfUrl: string): string | null {
+  if (want.length > QR_MAX) return null;
+  try {
+    const u = new URL(want);
+    const self = new URL(selfUrl);
+    if (u.protocol !== "http:") return null;
+    if (u.port !== self.port) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** 호스트 안내 페이지. 루프백이 아니면 있다는 사실도 알리지 않습니다. */
+function serveHostPage(
+  req: IncomingMessage,
+  res: import("node:http").ServerResponse,
+  path: string,
+  ip: string,
+  view: () => HostPageView,
+  rotate: () => { operator: string; staff: string; display: string },
+): void {
+  if (!isHostPageAllowed(ip)) {
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    res.end("찾는 파일이 없습니다.");
+    return;
+  }
+  const noStore = { "cache-control": "no-store" };
+  if (path === "/host/state.json") {
+    res.writeHead(200, { "content-type": "application/json; charset=utf-8", ...noStore });
+    res.end(hostStateJson(view()));
+    return;
+  }
+  if (path === "/host/rotate") {
+    if (req.method !== "POST") {
+      res.writeHead(405, { "content-type": "text/plain; charset=utf-8" });
+      res.end("POST로 보내 주세요.");
+      return;
+    }
+    rotate();
+    res.writeHead(200, { "content-type": "application/json; charset=utf-8", ...noStore });
+    res.end(hostStateJson(view()));
+    return;
+  }
+  if (path !== "/host") {
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    res.end("찾는 파일이 없습니다.");
+    return;
+  }
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8", ...noStore });
+  res.end(renderHostPage(view()));
 }

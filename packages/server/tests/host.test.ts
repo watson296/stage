@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
 import WebSocket from "ws";
 import { emptyEvent, newTimetableItem, type Event } from "@stage-planner/shared";
-import { startHost, type HostHandle } from "../src/host.ts";
+import { qrPayload, startHost, type HostHandle } from "../src/host.ts";
+import { hostStateJson, isHostPageAllowed, renderHostPage } from "../src/hostPage.ts";
 import { Hub } from "../src/hub.ts";
 import { isPrivateAddress, normalizeIp, preferredAddress } from "../src/net.ts";
 import { FailureLimiter, RateCounter, makeCode, roleForCode, makeAccessCodes } from "../src/codes.ts";
@@ -343,5 +344,135 @@ describe("실시간 연결", () => {
     expect(got.payload.notice.level).toBe("urgent");
     a.close();
     b.close();
+  });
+});
+
+// ── 호스트 안내 페이지 ───────────────────────────────────────────────────────
+describe("호스트 안내 페이지", () => {
+  it("루프백에서 온 요청만 통과시킵니다", () => {
+    for (const ip of ["127.0.0.1", "127.1.2.3", "::1", "::ffff:127.0.0.1"]) {
+      expect(isHostPageAllowed(ip), ip).toBe(true);
+    }
+    for (const ip of ["192.168.0.9", "10.0.0.1", "8.8.8.8", "", "128.0.0.1", "말"]) {
+      expect(isHostPageAllowed(ip), ip).toBe(false);
+    }
+  });
+
+  it("이 호스트를 가리키는 http 주소만 QR로 만듭니다", () => {
+    const self = "http://192.168.0.5:7321/";
+    expect(qrPayload("http://192.168.0.5:7321/?r=staff&c=123456", self)).toBeTruthy();
+    // 이름 주소도 같은 포트면 됩니다.
+    expect(qrPayload("http://stage.local:7321/?r=display&c=123456", self)).toBeTruthy();
+    // 다른 포트, 다른 규약, 너무 긴 값은 거부합니다.
+    expect(qrPayload("http://192.168.0.5:9999/", self)).toBeNull();
+    expect(qrPayload("https://evil.example/", self)).toBeNull();
+    expect(qrPayload("javascript:alert(1)", self)).toBeNull();
+    expect(qrPayload("http://192.168.0.5:7321/" + "x".repeat(300), self)).toBeNull();
+  });
+
+  it("상태 JSON에 역할별 링크와 기기가 들어갑니다", () => {
+    const json = JSON.parse(hostStateJson({
+      nameBase: "http://stage.local:7321/",
+      ipBase: "http://192.168.0.5:7321/",
+      codes: { operator: "111111", staff: "222222", display: "333333" },
+      devices: [{
+        id: "d1", role: "display", name: "대기실 TV",
+        connectedAt: "2026-10-24T05:00:00.000Z", lastSeen: "2026-10-24T05:00:00.000Z",
+        status: "online",
+      }],
+      mdnsProblem: null,
+      rotatedAt: "2026-10-24T05:00:00.000Z",
+    }));
+    expect(json.links).toHaveLength(3);
+    const staff = json.links.find((l: { role: string }) => l.role === "staff");
+    expect(staff.ip).toBe("http://192.168.0.5:7321/?r=staff&c=222222");
+    expect(staff.name).toBe("http://stage.local:7321/?r=staff&c=222222");
+    expect(json.devices[0].name).toBe("대기실 TV");
+  });
+
+  it("만든 쪽에서 꺾쇠를 막습니다", () => {
+    const html = renderHostPage({
+      nameBase: null,
+      ipBase: "http://192.168.0.5:7321/",
+      codes: { operator: "111111", staff: "222222", display: "333333" },
+      devices: [],
+      mdnsProblem: "이름 접속을 쓸 수 없어 IP로만 접속합니다.",
+      mdnsProblemShown: true,
+      rotatedAt: "",
+    } as never);
+    expect(html).toContain("?r=operator&amp;c=111111");
+    expect(html).toContain("이름 접속을 쓸 수 없어");
+    expect(html).not.toContain("<script>alert");
+  });
+});
+
+describe("코드 재발급", () => {
+  it("코드가 바뀌고 옛 코드로는 못 들어갑니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    const old = host.codes.operator;
+
+    const a = await hello(port, old, "operator", "먼저 붙은 FOH");
+    await next(a, "welcome");
+
+    const fresh = host.rotateCodes();
+    expect(fresh.operator).not.toBe(old);
+
+    // 옛 코드는 막힙니다.
+    const late = await hello(port, old, "operator", "옛 링크");
+    const err = await next(late, "error");
+    expect(err.payload.code).toBe("bad_code");
+
+    // 새 코드는 됩니다.
+    const b = await hello(port, fresh.staff, "staff", "새 링크");
+    expect((await next(b, "welcome")).payload.role).toBe("staff");
+
+    // 먼저 붙어 있던 연결은 그대로입니다(사용자 결정).
+    expect(a.readyState).toBe(WebSocket.OPEN);
+    a.send(JSON.stringify({ t: "ping", payload: {} }));
+    expect((await next(a, "pong")).t).toBe("pong");
+    a.close();
+    b.close();
+  });
+
+  it("안내 페이지는 루프백에서 열리고 기기 목록을 냅니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    const page = await fetch(`http://127.0.0.1:${port}/host`);
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain("접속 주소");
+    expect(html).toContain(`c=${host.codes.display}`);
+
+    const state = await (await fetch(`http://127.0.0.1:${port}/host/state.json`)).json();
+    expect(state.links).toHaveLength(3);
+    expect(state.devices).toEqual([]);
+
+    // GET으로는 재발급되지 않습니다.
+    expect((await fetch(`http://127.0.0.1:${port}/host/rotate`)).status).toBe(405);
+  });
+});
+
+describe("안내 페이지는 다른 기기에서 열리지 않습니다", () => {
+  it("판정은 소켓 주소로만 합니다. 헤더를 위조해도 바뀌지 않습니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+
+    // 바깥 기기인 척해도 루프백에서 왔으므로 그대로 열립니다.
+    const spoof = await fetch(`http://127.0.0.1:${port}/host`, {
+      headers: { "x-forwarded-for": "192.168.0.9", "x-real-ip": "192.168.0.9" },
+    });
+    expect(spoof.status).toBe(200);
+
+    // 반대로 루프백인 척하는 헤더도 쓰이지 않습니다. 판정 함수가 소켓 주소만 봅니다.
+    expect(isHostPageAllowed("192.168.0.9")).toBe(false);
+    expect(isHostPageAllowed("10.0.0.2")).toBe(false);
+  });
+
+  it("앱 자체는 같은 네트워크 기기에 열어 줍니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    // 앱은 누구나 받아야 하고(코드가 없으므로), 안내 페이지만 호스트 기기 것입니다.
+    expect((await fetch(`http://127.0.0.1:${port}/`)).status).toBe(200);
   });
 });
