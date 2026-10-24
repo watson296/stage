@@ -44,6 +44,11 @@ Pretendard
     https://github.com/websockets/ws
     WebSocket 서버 구현에 씁니다.
 
+  multicast-dns — MIT License. Copyright (c) 2015 Mathias Buus 외.
+    https://github.com/mafintosh/multicast-dns
+    stage.local 이름으로 접속할 수 있게 mDNS 질의에 응답하는 데 씁니다.
+    (전이 의존성 dns-packet, thunky, @leichtgewicht/ip-codec 모두 MIT입니다.)
+
   qrcode — MIT License. Copyright (c) 2012 Ryan Day 외.
     https://github.com/soldair/node-qrcode
     접속 주소 QR 코드를 SVG로 만드는 데 씁니다.
