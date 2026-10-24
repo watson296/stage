@@ -3,6 +3,7 @@ import { signal } from "@preact/signals";
 import * as S from "../state/appState";
 import * as N from "../net/client";
 import { ROLE_INFOS, roleInfo, setAppRole, type AppRole } from "../state/roles";
+import { joinProblem } from "../state/joinState";
 
 /** 시작 화면에서 고른 역할. 고르면 접속 칸이 열립니다. */
 const picked = signal<AppRole | null>(null);
@@ -82,6 +83,9 @@ export function StartScreen() {
         <p class="start-lead">
           무대를 그리고, 하루 순서를 짜고, 공연 중에 서로 같은 내용을 봅니다.
         </p>
+        {joinProblem.value && (
+          <p class="pa-warn" id="joinProblem">{joinProblem.value}</p>
+        )}
         {sel ? (
           <ConnectPanel role={sel} />
         ) : (

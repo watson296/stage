@@ -4,6 +4,7 @@ import * as N from "../net/client";
 import { currentAnnounce, unacked } from "../state/notices";
 import { itemName, remainingText, startsInText, useLive } from "./Dashboard";
 import { useWakeLock } from "./wakeLock";
+import { FullscreenButton } from "./FullscreenButton";
 
 /**
  * 대기실 화면. 공지가 떠 있으면 그것만 크게 보여 주고, 없으면 지금·다음 순서를
@@ -34,6 +35,7 @@ export function GreenroomScreen() {
           <span>지금 {itemName(v.current)}</span>
           <span>다음 {itemName(v.next)}</span>
           {v.next && <span>콜 타임 {formatHHMM(v.next.startMin)}</span>}
+          <FullscreenButton />
         </div>
       </div>
     );
@@ -67,6 +69,7 @@ export function GreenroomScreen() {
       </div>
       <div class="green-foot">
         <span class="muted">공지가 오면 이 화면에 크게 뜹니다.</span>
+        <FullscreenButton />
       </div>
     </div>
   );

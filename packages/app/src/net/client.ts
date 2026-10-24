@@ -11,6 +11,8 @@ import {
   type Role,
 } from "@stage-planner/shared";
 import { store, docVersion, toast } from "../state/appState";
+import { setAppRole } from "../state/roles";
+import { joinProblem, STALE_LINK } from "../state/joinState";
 
 export type ConnState = "offline" | "connecting" | "online";
 
@@ -51,8 +53,19 @@ export function httpBase(): string {
   return u.origin;
 }
 
+/** 링크로 들어온 접속인지. 코드가 거부되면 자리 고르기로 되돌립니다. */
+let linkJoin = false;
+
+export function connectFromLink(
+  url: string, code: string, role: Role, name: string,
+): void {
+  connect(url, code, role, name);
+  linkJoin = true;
+}
+
 export function connect(url: string, code: string, role: Role, name: string): void {
   disconnect(false);
+  linkJoin = false;
   wanted = { url: toWsUrl(url), code, role, name };
   hostUrl.value = wanted.url;
   open();
@@ -194,6 +207,12 @@ function handle(msg: { t: string; payload: Record<string, unknown> }): void {
       if (code === "bad_code" || code === "locked") {
         wanted = null;
         connState.value = "offline";
+        // 링크로 들어온 경우라면 자리 고르기로 돌려보내고 이유를 적습니다.
+        if (linkJoin) {
+          linkJoin = false;
+          setAppRole(null);
+          joinProblem.value = STALE_LINK;
+        }
       }
       toast(connMessage.value, true);
       break;

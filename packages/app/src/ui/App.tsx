@@ -14,6 +14,7 @@ import { Dashboard } from "./Dashboard";
 import { GreenroomScreen } from "./GreenroomScreen";
 import { StartScreen } from "./StartScreen";
 import { NoticeCover } from "./NoticeCover";
+import { joinFromLink } from "../net/joinLink";
 import { appRole, canSee, roleFromWire, roleInfo, screensFor, setAppRole, SCREEN_NAMES } from "../state/roles";
 import { exportPNG, exportPDF } from "../render/export-png";
 import { downloadJSON, parseEvent, pickJSONFile } from "../io/json";
@@ -51,6 +52,8 @@ async function doLoad(): Promise<void> {
 export function App() {
   useEffect(() => {
     setFavicon();
+    // 링크에 역할과 코드가 담겨 있으면 시작 화면을 건너뜁니다.
+    joinFromLink();
     // 저장된 작업 복원
     loadEvent()
       .then((saved) => {
