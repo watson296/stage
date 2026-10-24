@@ -13,6 +13,7 @@ import {
   shapeBounds,
   unionBounds,
   rectStage,
+  emptyStagePlan,
   arcOnEdge,
   CAPS,
   DEFAULT_ZONE_HEIGHT_M,
@@ -51,12 +52,30 @@ export const store = new Store();
 /** 문서가 바뀔 때마다 올라갑니다. 컴포넌트는 이 값을 읽어 다시 그립니다. */
 export const docVersion = signal(0);
 
+/**
+ * 문서 변경을 구독합니다. 컴포넌트 맨 위에서 `S.docTick();` 으로 부릅니다.
+ *
+ * `docVersion.value;` 처럼 값만 읽는 빈 문장을 쓰면 번들러가 "쓰지 않는 값"으로
+ * 보고 지워 버려서 구독이 걸리지 않습니다. 화면이 조용히 옛 내용을 보여 주게
+ * 되므로, 지워지지 않는 함수 호출로 둡니다.
+ */
+export function docTick(): number {
+  return docVersion.value;
+}
+
 /** 지금 보고 있는 화면. 1~3번 화면은 호스트 없이 혼자 돌아갑니다(SPEC 4). */
-export type Screen = "stage" | "pa" | "timetable" | "host" | "dashboard" | "display";
+export type Screen =
+  | "start"
+  | "stage"
+  | "pa"
+  | "timetable"
+  | "host"
+  | "dashboard"
+  | "greenroom";
 
 /** 운영 화면(대시보드, 표시 화면)은 어두운 공연장에 맞춰 다크가 기본입니다. */
 export function isDarkScreen(s: Screen): boolean {
-  return s === "dashboard" || s === "display";
+  return s === "dashboard" || s === "greenroom";
 }
 export const screen = signal<Screen>("stage");
 
@@ -94,9 +113,111 @@ store.subscribe(() => {
 export function currentEvent(): Event {
   return store.get();
 }
-/** 지금 편집 중인 배치도. 여러 장 지원은 2단계입니다. */
+/** 지금 편집 중인 배치도의 id. 없으면 첫 장을 씁니다. */
+export const currentPlanId = signal<string | null>(null);
+
 export function currentPlan(): StagePlan {
-  return store.get().stagePlans[0];
+  const plans = store.get().stagePlans;
+  return plans.find((p) => p.id === currentPlanId.value) ?? plans[0];
+}
+
+export function selectPlan(id: string): void {
+  if (!store.get().stagePlans.some((p) => p.id === id)) return;
+  currentPlanId.value = id;
+  selection.value = null;
+  vertexSel.value = null;
+  fitAfterRebuild();
+}
+
+/** 순서에 이어 둔 도면으로 바꿉니다. 없으면 그대로 둡니다. */
+export function selectPlanForItem(itemId: string): boolean {
+  const it = store.get().timetable.items.find((x) => x.id === itemId);
+  if (!it?.stagePlanId) return false;
+  selectPlan(it.stagePlanId);
+  return it.stagePlanId === currentPlan().id;
+}
+
+function newPlanId(): string {
+  return newId("plan");
+}
+
+/** 빈 도면을 더합니다. 돌려주는 값은 새 도면의 id입니다. */
+export function addPlan(name: string): string {
+  const id = newPlanId();
+  store.commit((doc) => {
+    if (doc.stagePlans.length >= CAPS.MAX_PLANS) return;
+    doc.stagePlans.push(emptyStagePlan(id, name || `배치 ${doc.stagePlans.length + 1}`));
+  });
+  if (store.get().stagePlans.some((p) => p.id === id)) {
+    currentPlanId.value = id;
+    return id;
+  }
+  toast("도면을 더 만들 수 없습니다.", true);
+  return currentPlan().id;
+}
+
+/** 도면 한 장을 그대로 복사합니다. 앞 공연 세팅에서 조금만 바꿀 때 씁니다. */
+export function duplicatePlan(srcId: string, name: string): string {
+  const src = store.get().stagePlans.find((p) => p.id === srcId);
+  if (!src) return currentPlan().id;
+  const id = newPlanId();
+  store.commit((doc) => {
+    if (doc.stagePlans.length >= CAPS.MAX_PLANS) return;
+    const from = doc.stagePlans.find((p) => p.id === srcId);
+    if (!from) return;
+    const copy: StagePlan = JSON.parse(JSON.stringify(from)) as StagePlan;
+    copy.id = id;
+    copy.name = name || `${from.name} 복사`;
+    copy.rev = 1;
+    // 안에 든 것들도 새 id를 줍니다. 같은 id가 둘이면 고를 때 헷갈립니다.
+    copy.objects = copy.objects.map((o, i) => ({ ...o, id: `${id}-o${i + 1}` }));
+    copy.notes = copy.notes.map((n, i) => ({ ...n, id: `${id}-n${i + 1}` }));
+    copy.zones = copy.zones.map((z, i) => ({ ...z, id: `${id}-z${i + 1}` }));
+    doc.stagePlans.push(copy);
+  });
+  if (store.get().stagePlans.some((p) => p.id === id)) {
+    currentPlanId.value = id;
+    return id;
+  }
+  toast("도면을 더 만들 수 없습니다.", true);
+  return currentPlan().id;
+}
+
+export function setPlanName(id: string, name: string): void {
+  store.mutate((doc) => {
+    const p = doc.stagePlans.find((x) => x.id === id);
+    if (p) p.name = name;
+  });
+}
+
+/** 도면을 지웁니다. 마지막 한 장은 남깁니다. 이어 둔 순서의 연결도 풉니다. */
+export function removePlan(id: string): void {
+  if (store.get().stagePlans.length <= 1) {
+    toast("도면은 한 장까지만 줄일 수 있습니다.");
+    return;
+  }
+  store.commit((doc) => {
+    doc.stagePlans = doc.stagePlans.filter((p) => p.id !== id);
+    for (const it of doc.timetable.items) {
+      if (it.stagePlanId === id) {
+        it.stagePlanId = null;
+        it.rev++;
+      }
+    }
+  });
+  if (currentPlanId.value === id) {
+    currentPlanId.value = store.get().stagePlans[0].id;
+    selection.value = null;
+    fitAfterRebuild();
+  }
+}
+
+/** 이 도면을 쓰는 순서의 이름. 도면 고르기에 함께 보여 줍니다. */
+export function showsUsingPlan(planId: string): string[] {
+  return store
+    .get()
+    .timetable.items.filter((i) => i.stagePlanId === planId)
+    .map((i) => i.title || "이름 없는 순서");
 }
 export function stageSize(): { w: number; d: number } {
   const b = shapeBounds(currentPlan().stage);
@@ -163,9 +284,16 @@ export function hitAny(wx: number, wy: number): Selection | null {
 
 // ── 편집 동작 ────────────────────────────────────────────────────────────────
 function mutatePlan(d: Event, fn: (p: StagePlan) => void): void {
-  const p = d.stagePlans[0];
+  const id = currentPlanId.value;
+  const p = d.stagePlans.find((x) => x.id === id) ?? d.stagePlans[0];
   fn(p);
   p.rev++;
+}
+
+/** 트랜잭션 중에 쓰는, rev를 올리지 않는 쪽. */
+function planOf(d: Event): StagePlan {
+  const id = currentPlanId.value;
+  return d.stagePlans.find((x) => x.id === id) ?? d.stagePlans[0];
 }
 
 export function placeObject(key: string, wx: number, wy: number): void {
@@ -440,7 +568,7 @@ export const vertexSel = signal<number | null>(null);
 
 export function moveVertex(index: number, x: number, y: number): void {
   store.mutate((doc) => {
-    const p = doc.stagePlans[0];
+    const p = planOf(doc);
     p.stage = moveShapeVertex(p.stage, index, { x: snapVal(x), y: snapVal(y) });
   });
 }
@@ -472,7 +600,7 @@ export function removeSelectedVertex(): void {
 /** 꼭짓점 좌표를 숫자로 고칩니다. */
 export function setVertexPos(index: number, x: number, y: number): void {
   store.mutate((doc) => {
-    const p = doc.stagePlans[0];
+    const p = planOf(doc);
     p.stage = moveShapeVertex(p.stage, index, { x, y });
   });
   fitIfAuto();
@@ -481,7 +609,7 @@ export function setVertexPos(index: number, x: number, y: number): void {
 /** 변 하나를 호로 만들거나(부푼 거리) 0을 주어 직선으로 되돌립니다. */
 export function setEdgeBulge(edgeIdx: number, bulgeM: number): void {
   store.mutate((doc) => {
-    const p = doc.stagePlans[0];
+    const p = planOf(doc);
     p.stage = setBulge(p.stage, edgeIdx, bulgeM);
   });
 }
@@ -524,7 +652,7 @@ export function resizeObject(
   id: string, box: { x: number; y: number; w: number; d: number },
 ): void {
   store.mutate((doc) => {
-    const o = doc.stagePlans[0].objects.find((x) => x.id === id);
+    const o = planOf(doc).objects.find((x) => x.id === id);
     if (!o) return;
     o.x = box.x;
     o.y = box.y;
@@ -536,7 +664,7 @@ export function resizeObject(
 
 export function setObjectRotation(id: string, deg: number): void {
   store.mutate((doc) => {
-    const o = doc.stagePlans[0].objects.find((x) => x.id === id);
+    const o = planOf(doc).objects.find((x) => x.id === id);
     if (o) o.rot = deg;
   });
 }
@@ -544,7 +672,7 @@ export function setObjectRotation(id: string, deg: number): void {
 /** 규격을 고르면 치수를 그 값으로 맞춥니다(중심은 그대로). */
 export function setVariant(id: string, variantId: string): void {
   store.commit((doc) => {
-    const o = doc.stagePlans[0].objects.find((x) => x.id === id);
+    const o = planOf(doc).objects.find((x) => x.id === id);
     if (!o) return;
     const v = EQUIPMENT[o.type]?.variants.find((x) => x.id === variantId);
     if (!v) return;

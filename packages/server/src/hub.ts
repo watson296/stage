@@ -7,7 +7,9 @@ import {
   type Device,
   type Entity,
   type Event,
+  type CueKind,
   type Notice,
+  type NoticeKind,
   type Role,
   type StagePlan,
   type TimetableItem,
@@ -95,18 +97,40 @@ export class Hub {
     return { found: true, conflict, rev: keptRev, value: after };
   }
 
-  addNotice(level: "normal" | "urgent", text: string, targets: Role[]): Notice {
+  addNotice(input: {
+    kind: NoticeKind;
+    level: "normal" | "urgent";
+    text: string;
+    targets: Role[];
+    cueKind?: CueKind;
+    itemId?: string | null;
+  }): Notice {
     const notice: Notice = {
       id: `notice-${Date.now().toString(36)}-${++this.seq}`,
-      level,
-      text,
-      targets,
+      kind: input.kind,
+      level: input.level,
+      text: input.text,
+      targets: input.targets,
       createdAt: new Date().toISOString(),
       ackBy: [],
+      cueKind: input.cueKind,
+      itemId: input.itemId ?? null,
+      closedAt: null,
       rev: 1,
     };
     this.doc.notices.push(notice);
     return notice;
+  }
+
+  /** 띄워 둔 공지를 내립니다. 지우지 않고 내린 시각만 적어 기록을 남깁니다. */
+  closeNotice(id: string): Notice | null {
+    const n = this.doc.notices.find((x) => x.id === id);
+    if (!n) return null;
+    if (!n.closedAt) {
+      n.closedAt = new Date().toISOString();
+      n.rev++;
+    }
+    return n;
   }
 
   ack(noticeId: string, deviceId: string): Notice | null {

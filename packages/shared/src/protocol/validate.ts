@@ -2,7 +2,7 @@
 // 화면에서 단추를 숨기는 것은 편의일 뿐이고, 믿는 곳은 여기뿐입니다(SPEC 3, 10).
 
 import { CAPS, asString, isObject } from "../model/schema";
-import type { Role } from "../model/types";
+import { isCueKind, isNoticeKind, type Role } from "../model/types";
 import { MAX_MESSAGE_BYTES, type ClientMessage, type Entity } from "./messages";
 
 export const ERR = {
@@ -108,15 +108,26 @@ export function parseClientMessage(raw: string): ClientMessage | ParseError {
       return { t: "ping", payload: {} };
     case "notice": {
       const targets = Array.isArray(p.targets) ? p.targets.filter(isRole) : [];
+      const kind = isNoticeKind(p.kind) ? p.kind : "announce";
+      const text = asString(p.text, CAPS.MAX_STR * 4);
+      if (!text.trim()) {
+        return { code: ERR.BAD_MESSAGE, message: "내용이 비어 있습니다." };
+      }
       return {
         t: "notice",
         payload: {
+          kind,
           level: p.level === "urgent" ? "urgent" : "normal",
-          text: asString(p.text, CAPS.MAX_STR * 4),
+          text,
           targets: targets.length ? targets : [...ROLES],
+          // 지시 종류는 지시일 때만 받습니다.
+          cueKind: kind === "cue" && isCueKind(p.cueKind) ? p.cueKind : undefined,
+          itemId: asString(p.itemId, 40) || null,
         },
       };
     }
+    case "noticeClose":
+      return { t: "noticeClose", payload: { noticeId: asString(p.noticeId, 40) } };
     case "publish":
       // 내용 검증은 서버가 migrate로 합니다. 여기서는 모양만 봅니다.
       if (!isObject(p.snapshot)) {

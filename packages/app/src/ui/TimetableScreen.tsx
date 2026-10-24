@@ -193,6 +193,27 @@ function Row({ row, plans }: { row: ScheduledRow; plans: { id: string; name: str
                   {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </label>
+              {!readOnly() && (
+                <div class="pa-row">
+                  <button class="btn" onClick={() => {
+                    const id = S.addPlan(it.title || "새 도면");
+                    T.setStagePlan(it.id, id);
+                    S.screen.value = "stage";
+                  }}>도면 만들기</button>
+                  <button class="btn" onClick={() => {
+                    const src = it.stagePlanId ?? S.currentPlan().id;
+                    const id = S.duplicatePlan(src, `${it.title || "순서"} 세팅`);
+                    T.setStagePlan(it.id, id);
+                    S.screen.value = "stage";
+                  }}>앞 도면 복사</button>
+                  {it.stagePlanId && (
+                    <button class="btn" onClick={() => {
+                      S.selectPlan(it.stagePlanId!);
+                      S.screen.value = "stage";
+                    }}>도면 열기</button>
+                  )}
+                </div>
+              )}
               <button class="btn btn-danger" onClick={() => T.removeItem(it.id)}>순서 삭제</button>
             </div>
           </td>
@@ -272,8 +293,8 @@ function TimelineView() {
 }
 
 export function TimetableScreen() {
-  S.docVersion.value;
-  T.nowMin.value;
+  S.docTick();
+  T.clockTick();
   return (
     <div class="tt">
       <section class="card">

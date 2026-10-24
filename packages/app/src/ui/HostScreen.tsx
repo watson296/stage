@@ -157,7 +157,7 @@ function HowTo() {
 }
 
 export function HostScreen() {
-  S.docVersion.value;
+  S.docTick();
   const online = N.connState.value !== "offline";
   return (
     <div class="pa">

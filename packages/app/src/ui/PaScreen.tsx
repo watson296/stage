@@ -304,7 +304,7 @@ function PowerCard() {
 }
 
 export function PaScreen() {
-  S.docVersion.value;
+  S.docTick();
   const ro = readOnly();
   return (
     <fieldset class="pa" disabled={ro}>

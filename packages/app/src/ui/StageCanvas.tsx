@@ -29,7 +29,7 @@ export function StageCanvas() {
   const firstFit = useRef(false);
 
   // 이 값들이 바뀌면 컴포넌트가 다시 렌더되고, 아래 effect가 다시 그립니다.
-  S.docVersion.value;
+  S.docTick();
   S.camera.value;
   S.selection.value;
   S.gridSz.value;

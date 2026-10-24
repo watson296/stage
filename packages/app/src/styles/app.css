@@ -1020,3 +1020,244 @@ fieldset.pa {
     font-size: 64px;
   }
 }
+
+/* 시작하기 */
+.start {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+}
+.start-box {
+  width: 100%;
+  max-width: 880px;
+}
+.start-box h1 {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+.start-lead {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-bottom: 32px;
+}
+.start-ask {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.start-roles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.start-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  min-height: 132px;
+}
+.start-card:hover {
+  border-color: var(--accent);
+}
+.start-card-name {
+  font-size: 22px;
+  font-weight: 700;
+}
+.start-card-desc {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.start-connect {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+.start-connect h3 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+.start-connect .pa-grid {
+  margin: 16px 0;
+}
+
+/* 머리말의 자리 표시 */
+.role-chip {
+  font-weight: 700;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 도면 고르기 줄 */
+.planbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.planbar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.planbar .inp {
+  min-width: 140px;
+}
+.planbar-use {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* 대기실 화면 */
+.green {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 32px;
+  gap: 16px;
+  overflow: hidden;
+}
+.green-notice {
+  background: var(--sg-deep);
+}
+.green-urgent {
+  background: var(--sg-signal);
+  color: #ffffff;
+}
+.green-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+  min-height: 0;
+}
+.green-body.green-plain {
+  align-items: stretch;
+  text-align: left;
+  gap: 24px;
+}
+.green-tag {
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+}
+.green-urgent .green-tag {
+  color: #ffffff;
+}
+.green-text {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1.25;
+  max-width: 20ch;
+}
+.green-at {
+  font-size: 16px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.green-urgent .green-at {
+  color: #ffffff;
+}
+.green-foot {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  font-size: 18px;
+  color: var(--text-muted);
+}
+.green-urgent .green-foot {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+}
+
+/* 지시 목록 */
+.cue-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cue-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.cue-tag {
+  flex-shrink: 0;
+  min-width: 68px;
+  text-align: center;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.cue-tag.cue-urgent {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.cue-text {
+  flex: 1;
+  line-height: 1.5;
+  font-size: 15px;
+}
+.cue-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.cue-badge {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 55;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  box-shadow: var(--shadow-float);
+  cursor: pointer;
+}
+
+@media (max-width: 860px) {
+  .green-text {
+    font-size: 40px;
+  }
+}
+
+/* 대기실 확인 단추는 멀리서도 누를 수 있게 큽니다. */
+.green-ack {
+  font-size: 20px;
+  min-height: 56px;
+  padding: 12px 40px;
+}

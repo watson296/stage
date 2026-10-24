@@ -15,7 +15,7 @@ import {
   type TimetableItem,
   type TimetableKind,
 } from "@stage-planner/shared";
-import { store, currentEvent, docVersion, toast } from "./appState";
+import { store, currentEvent, docTick, toast } from "./appState";
 
 /** 지금 시각(자정부터 분). 진행 중인 순서의 남은 시간 계산에 씁니다. */
 export const nowMin = signal(dateToMinOfDay(new Date()));
@@ -38,7 +38,7 @@ export function startClock(): () => void {
 }
 
 export function rows(): ScheduleResult {
-  docVersion.value;
+  docTick();
   return schedule(currentEvent().timetable, nowMin.value);
 }
 
@@ -164,3 +164,8 @@ export const selectedId = signal<string | null>(null);
 
 export type TimetableView = "list" | "timeline";
 export const view = signal<TimetableView>("list");
+
+/** 분이 바뀔 때 다시 그리도록 구독합니다. 빈 문장으로 두면 지워집니다. */
+export function clockTick(): number {
+  return nowMin.value;
+}

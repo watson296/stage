@@ -2,8 +2,43 @@ import { ZONE_KINDS, type ZoneKind } from "@stage-planner/shared";
 import * as S from "../state/appState";
 import { readOnly } from "../net/client";
 
+/** 지금 고치는 도면을 고릅니다. 공연마다 다른 세팅을 둘 수 있습니다. */
+function PlanBar() {
+  const plans = S.currentEvent().stagePlans;
+  const cur = S.currentPlan();
+  const shows = S.showsUsingPlan(cur.id);
+  const ro = readOnly();
+  return (
+    <div class="planbar">
+      <label>도면
+        <select class="inp" id="planSel" value={cur.id}
+          onChange={(e) => S.selectPlan((e.target as HTMLSelectElement).value)}>
+          {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+      {!ro && (
+        <input class="inp" id="planName" type="text" value={cur.name} title="도면 이름"
+          onInput={(e) => S.setPlanName(cur.id, (e.target as HTMLInputElement).value)} />
+      )}
+      {shows.length > 0 && <span class="planbar-use">{shows.join(", ")}에서 씁니다</span>}
+      {!ro && (
+        <>
+          <button class="btn" id="planAdd"
+            onClick={() => S.addPlan(`배치 ${plans.length + 1}`)}>새 도면</button>
+          <button class="btn" id="planCopy"
+            onClick={() => S.duplicatePlan(cur.id, `${cur.name} 복사`)}>복사</button>
+          <button class="btn btn-danger" id="planDel"
+            onClick={() => {
+              if (confirm(`도면 "${cur.name}"을 지울까요?`)) S.removePlan(cur.id);
+            }}>도면 삭제</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function Toolbar() {
-  S.docVersion.value;
+  S.docTick();
   const m = S.mode.value;
   const size = S.stageSize();
   const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -11,6 +46,8 @@ export function Toolbar() {
   // 읽기 전용으로 붙은 기기에는 보기 관련 단추만 둡니다.
   if (readOnly()) {
     return (
+      <>
+      <PlanBar />
       <div class="tbar">
         <span class="ro-note">읽기 전용입니다. 고치려면 운영자로 접속해 주세요.</span>
         <div class="sep" />
@@ -21,10 +58,13 @@ export function Toolbar() {
         <button class={"btn" + (S.autoFit.value ? " active" : "")} id="btnFit"
           onClick={() => S.fit()}>맞춤</button>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+    <PlanBar />
     <div class="tbar">
       <button class={"btn" + (m === "select" || m === "place" ? " active" : "")}
         onClick={() => S.setMode("select")}>선택</button>
@@ -105,5 +145,6 @@ export function Toolbar() {
         if (confirm("모든 장비와 메모를 초기화할까요?")) S.clearPlan();
       }}>초기화</button>
     </div>
+    </>
   );
 }

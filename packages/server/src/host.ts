@@ -309,7 +309,7 @@ function attach(
         break;
       }
       case "notice": {
-        const n = hub.addNotice(msg.payload.level, msg.payload.text, msg.payload.targets);
+        const n = hub.addNotice(msg.payload);
         hub.broadcast({ t: "notice", payload: { notice: n } }, (d) =>
           n.targets.includes(d.role),
         );
@@ -339,6 +339,18 @@ function attach(
         if (warnings.length) {
           send({ t: "error", payload: { code: "warning", message: warnings.join(" ") } });
         }
+        break;
+      }
+      case "noticeClose": {
+        const n = hub.closeNotice(msg.payload.noticeId);
+        if (!n) {
+          fail(ERR.NOT_FOUND, "그런 공지가 없습니다.");
+          return;
+        }
+        hub.broadcast({
+          t: "snapshot",
+          payload: { serverTime: new Date().toISOString(), snapshot: hub.snapshot() },
+        });
         break;
       }
       case "kick": {

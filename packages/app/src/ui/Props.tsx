@@ -33,7 +33,7 @@ function editHandlers(apply: (v: string) => void) {
 }
 
 export function Props() {
-  S.docVersion.value;
+  S.docTick();
   const sel = S.selection.value;
   const plan = S.currentPlan();
   // 소수 둘째 자리까지 보여 줍니다. DI 박스 0.12×0.08처럼 10cm 아래 치수가
@@ -172,7 +172,7 @@ export function Props() {
 
 /** 무대 모양 모드의 속성 바. 고른 꼭짓점의 좌표를 고치고 지웁니다. */
 function VertexProps() {
-  S.docVersion.value;
+  S.docTick();
   const i = S.vertexSel.value;
   const pts = S.currentPlan().stage.points;
   const r1 = (v: number) => Math.round(v * 10) / 10;

@@ -171,7 +171,7 @@ describe("공지 왕복 저장", () => {
   it("공지와 확인 기록을 그대로 살린다", () => {
     const { event } = roundTrip((ev) => {
       ev.notices = [{
-        id: "n-1", level: "urgent", text: "3팀 대기실로 와 주세요",
+        id: "n-1", kind: "announce", level: "urgent", text: "3팀 대기실로 와 주세요",
         targets: ["staff", "display"], createdAt: "2026-10-21T04:00:00.000Z",
         ackBy: ["dev-1", "dev-2"], rev: 3,
       }];

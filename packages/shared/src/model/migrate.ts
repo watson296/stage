@@ -16,6 +16,8 @@ import {
   type Notice as NoticeEntry,
   type Role,
   isZoneKind,
+  isNoticeKind,
+  isCueKind,
   zoneNeedsHeight,
   clonePa,
   DEFAULT_PA,
@@ -307,8 +309,15 @@ function v2Notices(raw: unknown): NoticeEntry[] {
     if (!isObject(rn)) continue;
     const targets = (Array.isArray(rn.targets) ? rn.targets : [])
       .filter((t): t is Role => t === "operator" || t === "staff" || t === "display");
+    const itemId = asString(rn.itemId, 40);
     out.push({
       id: asString(rn.id, 40) || `notice-${out.length + 1}`,
+      // 옛 파일에는 종류가 없습니다. 운영팀에게만 간 글은 지시로 봅니다.
+      kind: isNoticeKind(rn.kind)
+        ? rn.kind
+        : isCueKind(rn.cueKind)
+          ? "cue"
+          : "announce",
       level: rn.level === "urgent" ? "urgent" : "normal",
       text: asString(rn.text, CAPS.MAX_STR * 4),
       targets: targets.length ? targets : ["operator", "staff", "display"],
@@ -317,6 +326,9 @@ function v2Notices(raw: unknown): NoticeEntry[] {
         .filter((v): v is string => typeof v === "string")
         .slice(0, CAPS.MAX_ACKS)
         .map((v) => v.slice(0, 40)),
+      cueKind: isCueKind(rn.cueKind) ? rn.cueKind : undefined,
+      itemId: itemId || null,
+      closedAt: asString(rn.closedAt, 40) || null,
       rev: Math.max(1, Math.trunc(asNumber(rn.rev, 1))),
     });
   }

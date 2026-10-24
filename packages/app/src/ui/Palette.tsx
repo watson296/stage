@@ -66,7 +66,7 @@ export function Palette() {
   // 읽기 전용으로 붙은 기기는 장비를 놓을 수 없습니다.
   if (readOnly()) return null;
 
-  S.docVersion.value;
+  S.docTick();
   S.placingType.value;
   const custom = Object.entries(S.currentEvent().customEquipment);
   return (

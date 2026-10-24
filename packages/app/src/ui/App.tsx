@@ -11,7 +11,10 @@ import { startClock } from "../state/ttState";
 import { HostScreen } from "./HostScreen";
 import * as N from "../net/client";
 import { Dashboard } from "./Dashboard";
-import { DisplayScreen, DISPLAY_KINDS, displayKind, NoticeOverlay } from "./DisplayScreen";
+import { GreenroomScreen } from "./GreenroomScreen";
+import { StartScreen } from "./StartScreen";
+import { NoticeCover } from "./NoticeCover";
+import { appRole, canSee, roleFromWire, roleInfo, screensFor, setAppRole, SCREEN_NAMES } from "../state/roles";
 import { exportPNG, exportPDF } from "../render/export-png";
 import { downloadJSON, parseEvent, pickJSONFile } from "../io/json";
 import { loadEvent } from "../state/autosave";
@@ -36,6 +39,7 @@ async function doLoad(): Promise<void> {
     const { event, warnings } = parseEvent(text);
     S.store.replace(event);
     S.selection.value = null;
+    S.currentPlanId.value = event.stagePlans[0]?.id ?? null;
     S.fit();
     warnings.forEach((w) => S.toast(w));
     S.toast("불러왔습니다.");
@@ -52,6 +56,7 @@ export function App() {
       .then((saved) => {
         if (!saved) return;
         S.store.replace(saved.event);
+        S.currentPlanId.value = saved.event.stagePlans[0]?.id ?? null;
         S.fit();
         saved.warnings.forEach((w) => S.toast(w));
       })
@@ -104,44 +109,68 @@ export function App() {
     };
   }, []);
 
-  // 운영 화면은 다크, 설계 화면은 라이트입니다(docs/design.md).
+  // 접속한 코드가 역할을 정합니다. 화면 역할이 다르면 서버 쪽을 따릅니다.
+  useEffect(() => {
+    const wire = N.myRole.value;
+    if (wire) {
+      const r = roleFromWire(wire);
+      if (appRole.value !== r) {
+        setAppRole(r);
+        S.screen.value = roleInfo(r).screens[0];
+      }
+    }
+  }, [N.myRole.value]);
+
+  // 고른 자리에서 볼 수 없는 화면이면 첫 화면으로 돌립니다.
+  useEffect(() => {
+    const role = appRole.value;
+    if (role && !canSee(role, S.screen.value)) S.screen.value = roleInfo(role).screens[0];
+  }, [appRole.value, S.screen.value]);
+
   useEffect(() => {
     // 운영 화면은 공연장이 어두워 늘 다크입니다. 설계 화면은 기기 설정을 따릅니다.
     if (S.isDarkScreen(S.screen.value)) document.documentElement.dataset.theme = "dark";
     else delete document.documentElement.dataset.theme;
   }, [S.screen.value]);
 
-  S.docVersion.value;
+  S.docTick();
+  const role = appRole.value;
+  if (!role) return <><StartScreen /><Toasts /></>;
+
   const size = S.stageSize();
   const r1 = (v: number) => Math.round(v * 10) / 10;
+  const screen = S.screen.value;
+  const info = roleInfo(role);
 
   return (
     <>
       <header class="hdr">
         <div class="hdr-l">
           <div class="title">Stage Planner</div>
-          <div class="sub">새결 공연 무대 구상 도구</div>
+          <button class="btn role-chip" id="btnRole" title="자리를 바꿉니다"
+            onClick={() => {
+              N.disconnect(true);
+              setAppRole(null);
+            }}>{info.name}</button>
           <nav class="tabs">
-            <button class={"btn" + (S.screen.value === "stage" ? " active" : "")}
-              id="tabStage" onClick={() => (S.screen.value = "stage")}>무대 설계</button>
-            <button class={"btn" + (S.screen.value === "pa" ? " active" : "")}
-              id="tabPa" onClick={() => (S.screen.value = "pa")}>PA 조언</button>
-            <button class={"btn" + (S.screen.value === "timetable" ? " active" : "")}
-              id="tabTt" onClick={() => (S.screen.value = "timetable")}>타임테이블</button>
-            <button class={"btn" + (S.screen.value === "dashboard" ? " active" : "")}
-              id="tabDash" onClick={() => (S.screen.value = "dashboard")}>대시보드</button>
-            <button class={"btn" + (S.screen.value === "display" ? " active" : "")}
-              id="tabDisplay" onClick={() => (S.screen.value = "display")}>표시 화면</button>
-            <button class={"btn" + (S.screen.value === "host" ? " active" : "")}
-              id="tabHost" onClick={() => (S.screen.value = "host")}>
-              호스트{N.connState.value === "online" ? " (접속됨)" : ""}
-            </button>
+            {screensFor(role).map((sc) => (
+              <button key={sc} class={"btn" + (screen === sc ? " active" : "")}
+                id={`tab-${sc}`} onClick={() => (S.screen.value = sc)}>
+                {sc === "host" && N.connState.value === "online"
+                  ? `${SCREEN_NAMES[sc]} (접속됨)`
+                  : SCREEN_NAMES[sc]}
+              </button>
+            ))}
           </nav>
         </div>
         <div class="hdr-r">
-          <button class="btn" onClick={() => downloadJSON(S.currentEvent())}>저장</button>
-          <button class="btn" onClick={() => void doLoad()}>불러오기</button>
-          {S.screen.value === "stage" && (
+          {role === "foh" && (
+            <>
+              <button class="btn" onClick={() => downloadJSON(S.currentEvent())}>저장</button>
+              <button class="btn" onClick={() => void doLoad()}>불러오기</button>
+            </>
+          )}
+          {screen === "stage" && (
             <>
               <button class="btn btn-accent" id="btnExport"
                 onClick={() => exportPNG(S.currentPlan(), S.currentEvent().name, S.gridSz.value, footerLogo)}>
@@ -153,26 +182,19 @@ export function App() {
               </button>
             </>
           )}
-          {S.screen.value === "display" && (
-            <select class="inp" id="dispKind" value={displayKind.value}
-              onChange={(e) =>
-                (displayKind.value = (e.target as HTMLSelectElement).value as typeof displayKind.value)}>
-              {DISPLAY_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.name} 화면</option>)}
-            </select>
-          )}
           <button class="btn" onClick={() => (S.showInfoModal.value = true)}>정보</button>
         </div>
       </header>
-      {S.screen.value === "pa" ? (
+      {screen === "pa" ? (
         <PaScreen />
-      ) : S.screen.value === "timetable" ? (
+      ) : screen === "timetable" ? (
         <TimetableScreen />
-      ) : S.screen.value === "host" ? (
+      ) : screen === "host" ? (
         <HostScreen />
-      ) : S.screen.value === "dashboard" ? (
+      ) : screen === "dashboard" ? (
         <Dashboard />
-      ) : S.screen.value === "display" ? (
-        <DisplayScreen />
+      ) : screen === "greenroom" ? (
+        <GreenroomScreen />
       ) : (
         <>
           <Toolbar />
@@ -190,7 +212,7 @@ export function App() {
           </div>
         </>
       )}
-      <NoticeOverlay />
+      <NoticeCover />
       <NoteModal />
       <CustomModal />
       <InfoModal />

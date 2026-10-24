@@ -126,7 +126,9 @@ describe("호스트 상태", () => {
 
   it("공지를 더하고 확인을 기록합니다", () => {
     const hub = new Hub(docWithItem());
-    const n = hub.addNotice("urgent", "무대 정리 부탁드립니다", ["staff"]);
+    const n = hub.addNotice({
+      kind: "announce", level: "urgent", text: "무대 정리 부탁드립니다", targets: ["staff"],
+    });
     expect(hub.ack(n.id, "dev-1")?.ackBy).toEqual(["dev-1"]);
     // 같은 기기가 두 번 눌러도 한 번만 셉니다.
     expect(hub.ack(n.id, "dev-1")?.ackBy).toEqual(["dev-1"]);
@@ -334,7 +336,7 @@ describe("실시간 연결", () => {
 
     a.send(JSON.stringify({
       t: "notice",
-      payload: { level: "urgent", text: "무대 정리 부탁드립니다", targets: ["display"] },
+      payload: { kind: "announce", level: "urgent", text: "무대 정리 부탁드립니다", targets: ["display"] },
     }));
     const got = await next(b, "notice");
     expect(got.payload.notice.text).toBe("무대 정리 부탁드립니다");

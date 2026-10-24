@@ -1,6 +1,6 @@
 // 호스트와 접속 기기가 주고받는 WebSocket 메시지입니다(SPEC 9장).
 // 5단계에서 서버·클라이언트가 이 타입을 함께 씁니다.
-import type { Device, Event, Notice, Role } from "../model/types";
+import type { CueKind, Device, Event, Notice, NoticeKind, Role } from "../model/types";
 
 /** 메시지 하나의 최대 크기(바이트). 넘으면 연결을 끊습니다. */
 export const MAX_MESSAGE_BYTES = 64 * 1024;
@@ -21,7 +21,19 @@ export type ClientMessage =
   | { t: "itemStart"; payload: { itemId: string } }
   | { t: "itemEnd"; payload: { itemId: string } }
   | { t: "ping"; payload: Record<string, never> }
-  | { t: "notice"; payload: { level: "normal" | "urgent"; text: string; targets: Role[] } }
+  | {
+      t: "notice";
+      payload: {
+        kind: NoticeKind;
+        level: "normal" | "urgent";
+        text: string;
+        targets: Role[];
+        cueKind?: CueKind;
+        itemId?: string | null;
+      };
+    }
+  // 띄워 둔 공지나 처리한 지시를 내립니다.
+  | { t: "noticeClose"; payload: { noticeId: string } }
   // 운영자가 자기 기기의 작업을 호스트에 올립니다. 호스트가 단일 원본이므로
   // 이 메시지 뒤에는 모두가 호스트의 내용을 봅니다.
   | { t: "publish"; payload: { snapshot: unknown } }

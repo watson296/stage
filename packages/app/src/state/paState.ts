@@ -215,8 +215,9 @@ export function applyDraftToPlan(): void {
     return;
   }
 
+  const planId = plan.id;
   store.commit((doc: Event) => {
-    const p = doc.stagePlans[0];
+    const p = doc.stagePlans.find((x) => x.id === planId) ?? doc.stagePlans[0];
     p.objects.push(...added);
     p.rev++;
   });

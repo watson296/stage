@@ -4,8 +4,10 @@
 import { signal } from "@preact/signals";
 import {
   migrate,
+  type CueKind,
   type Device,
-  type Notice,
+
+  type NoticeKind,
   type Role,
 } from "@stage-planner/shared";
 import { store, docVersion, toast } from "../state/appState";
@@ -17,7 +19,6 @@ export const connMessage = signal("");
 export const myRole = signal<Role | null>(null);
 export const myDeviceId = signal<string | null>(null);
 export const devices = signal<Device[]>([]);
-export const liveNotices = signal<Notice[]>([]);
 /** 서버 시각 − 내 시각(ms). 남은 시간을 모두 같은 숫자로 보게 맞춥니다(SPEC 9.6). */
 export const serverSkewMs = signal(0);
 export const hostUrl = signal("");
@@ -175,8 +176,8 @@ function handle(msg: { t: string; payload: Record<string, unknown> }): void {
       break;
     }
     case "notice": {
-      const n = (msg.payload as { notice: Notice }).notice;
-      liveNotices.value = [...liveNotices.value, n];
+      // 내용은 바로 뒤에 오는 snapshot에 함께 들어옵니다. 여기서는 소리 없이
+      // 지나가고, 화면은 문서의 공지 목록을 읽습니다.
       break;
     }
     case "devices":
@@ -235,17 +236,42 @@ export function sendItemStart(itemId: string): void {
 export function sendItemEnd(itemId: string): void {
   send({ t: "itemEnd", payload: { itemId } });
 }
-export function sendNotice(
-  text: string,
-  level: "normal" | "urgent",
-  targets: Role[],
-): void {
-  send({ t: "notice", payload: { text, level, targets } });
+export interface NoticeInput {
+  kind: NoticeKind;
+  text: string;
+  level?: "normal" | "urgent";
+  targets: Role[];
+  cueKind?: CueKind;
+  itemId?: string | null;
+}
+
+export function sendNotice(input: NoticeInput): void {
+  send({
+    t: "notice",
+    payload: {
+      kind: input.kind,
+      text: input.text,
+      level: input.level ?? "normal",
+      targets: input.targets,
+      cueKind: input.cueKind,
+      itemId: input.itemId ?? null,
+    },
+  });
+}
+
+/** 띄워 둔 공지를 내립니다. FOH만 할 수 있고 서버가 다시 확인합니다. */
+export function closeNotice(noticeId: string): void {
+  send({ t: "noticeClose", payload: { noticeId } });
 }
 export function ackNotice(noticeId: string): void {
   send({ t: "ack", payload: { noticeId } });
-  liveNotices.value = liveNotices.value.filter((n) => n.id !== noticeId);
+  // 서버 답을 기다리지 않고 이 화면에서는 바로 닫습니다. 공연 중에 멈칫하면
+  // 안 되고, 서버가 거절해도 다시 뜨게 됩니다.
+  ackedHere.value = [...ackedHere.value, noticeId];
 }
+
+/** 이 기기에서 이미 확인을 누른 공지. 서버 기록이 오기 전까지 씁니다. */
+export const ackedHere = signal<string[]>([]);
 export function kickDevice(deviceId: string): void {
   send({ t: "kick", payload: { deviceId } });
 }

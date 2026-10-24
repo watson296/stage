@@ -147,14 +147,58 @@ export interface Timetable {
 
 export type Role = "operator" | "staff" | "display";
 
+/**
+ * 보내는 글의 종류. 받는 사람이 다르고 생김새도 다릅니다.
+ *  - announce: 대기실 공지. 단색 배경에 큰 글씨로 띄웁니다.
+ *  - cue: 운영팀 지시. 무엇을 할지 적고 처리했는지 표시합니다.
+ */
+export const NOTICE_KINDS = ["announce", "cue"] as const;
+export type NoticeKind = (typeof NOTICE_KINDS)[number];
+
+export function isNoticeKind(v: unknown): v is NoticeKind {
+  return typeof v === "string" && (NOTICE_KINDS as readonly string[]).includes(v);
+}
+
+/** 운영팀 지시의 종류. 목록에서 한눈에 구분하려고 둡니다. */
+export const CUE_KIND_IDS = ["mic", "stage", "instrument", "move", "other"] as const;
+export type CueKind = (typeof CUE_KIND_IDS)[number];
+
+export function isCueKind(v: unknown): v is CueKind {
+  return typeof v === "string" && (CUE_KIND_IDS as readonly string[]).includes(v);
+}
+
+export const CUE_KINDS: { kind: CueKind; name: string; hint: string }[] = [
+  { kind: "mic", name: "마이크", hint: "예: 3번 마이크 보컬에게 전달" },
+  { kind: "stage", name: "무대 세팅", hint: "예: 드럼 라이저 앞으로 0.5m" },
+  { kind: "instrument", name: "악기", hint: "예: 기타 앰프 2번 자리로" },
+  { kind: "move", name: "동선", hint: "예: 2팀 무대 뒤 대기" },
+  { kind: "other", name: "기타", hint: "" },
+];
+
+export function cueKindInfo(kind: CueKind): { kind: CueKind; name: string; hint: string } {
+  return CUE_KINDS.find((c) => c.kind === kind) ?? CUE_KINDS[4];
+}
+
 export interface Notice {
   id: string;
+  kind: NoticeKind;
   level: "normal" | "urgent";
   text: string;
   targets: Role[];
   createdAt: string;
   ackBy: string[];
+  /** 지시의 종류. kind가 cue일 때만 씁니다. */
+  cueKind?: CueKind;
+  /** 어느 순서에 대한 것인지. 없으면 전체에 해당합니다. */
+  itemId?: string | null;
+  /** 내린 시각. 값이 있으면 화면에서 사라집니다. */
+  closedAt?: string | null;
   rev: number;
+}
+
+/** 지금 화면에 떠 있어야 하는 글인지. */
+export function isNoticeOpen(n: Notice): boolean {
+  return !n.closedAt;
 }
 
 export interface Device {
