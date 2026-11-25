@@ -8,33 +8,9 @@ import {
   type TimetableKind,
 } from "@stage-planner/shared";
 import * as S from "../state/appState";
+import { EditInput } from "./EditInput";
 import * as T from "../state/ttState";
 import { myRole, readOnly, sendItemEnd, sendItemStart } from "../net/client";
-
-/** 글자 입력. 고치는 동안을 되돌리기 한 단계로 묶습니다. */
-function textHandlers(apply: (v: string) => void) {
-  let dirty = false;
-  return {
-    onFocus: () => {
-      S.store.beginTxn();
-      dirty = false;
-    },
-    onInput: (e: Event) => {
-      dirty = true;
-      apply((e.target as HTMLInputElement).value);
-    },
-    onBlur: () => {
-      if (dirty) S.store.commitTxn();
-      else S.store.cancelTxn();
-      dirty = false;
-    },
-    onKeyDown: (e: KeyboardEvent) => {
-      if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
-        (e.target as HTMLInputElement).blur();
-      }
-    },
-  };
-}
 
 function timeLabel(min: number): string {
   return formatHHMM(min) + (isNextDay(min) ? " (다음 날)" : "");
@@ -52,8 +28,8 @@ function Head() {
     <div class="tt-head">
       <label class="pa-num">
         <span>하루 시작</span>
-        <input class="inp" type="time" id="dayStart" value={tt.dayStart}
-          {...textHandlers(T.setDayStart)} />
+        <EditInput class="inp" type="time" id="dayStart" value={tt.dayStart}
+          onEdit={T.setDayStart} />
       </label>
       {readOnly() && (
         <span class="ro-note">읽기 전용입니다. 진행 기록은 담당인 순서만 바꿀 수 있습니다.</span>
@@ -136,16 +112,16 @@ function Row({ row, plans }: { row: ScheduledRow; plans: { id: string; name: str
           </select>
         </td>
         <td>
-          <input class="inp wide" type="text" value={it.title} placeholder="순서 이름"
-            {...textHandlers((v) => T.setTitle(it.id, v))} />
+          <EditInput class="inp wide" type="text" value={it.title} placeholder="순서 이름"
+            onEdit={(v) => T.setTitle(it.id, v)} />
         </td>
         <td>
-          <input class="inp" type="time" value={it.plannedStart}
-            {...textHandlers((v) => T.setPlannedStart(it.id, v))} />
+          <EditInput class="inp" type="time" value={it.plannedStart}
+            onEdit={(v) => T.setPlannedStart(it.id, v)} />
         </td>
         <td>
-          <input class="inp num" type="number" min="0" max="1440" step="5" value={it.durationMin}
-            {...textHandlers((v) => T.setDuration(it.id, parseFloat(v) || 0))} />
+          <EditInput class="inp num" type="number" min="0" max="1440" step="5" value={it.durationMin}
+            onEdit={(v) => T.setDuration(it.id, parseFloat(v) || 0)} />
         </td>
         <td class="tt-when">
           <strong>{timeLabel(row.startMin)}</strong>
@@ -156,8 +132,8 @@ function Row({ row, plans }: { row: ScheduledRow; plans: { id: string; name: str
           {row.overrun && <div class="tt-late">예정 길이를 넘겼습니다</div>}
         </td>
         <td>
-          <input class="inp" type="text" value={it.owner} placeholder="담당"
-            {...textHandlers((v) => T.setOwner(it.id, v))} />
+          <EditInput class="inp" type="text" value={it.owner} placeholder="담당"
+            onEdit={(v) => T.setOwner(it.id, v)} />
         </td>
         <td><div class="tt-cell"><StatusCell row={row} /></div></td>
         <td>
@@ -179,8 +155,8 @@ function Row({ row, plans }: { row: ScheduledRow; plans: { id: string; name: str
             <div class="tt-detail-in">
               <label class="pa-num wide">
                 <span>메모</span>
-                <input class="inp" type="text" value={it.memo} placeholder="전환 내용, 주의할 점"
-                  {...textHandlers((v) => T.setMemo(it.id, v))} />
+                <EditInput class="inp" type="text" value={it.memo} placeholder="전환 내용, 주의할 점"
+                  onEdit={(v) => T.setMemo(it.id, v)} />
               </label>
               <label class="pa-num">
                 <span>무대 도면</span>

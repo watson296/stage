@@ -8,29 +8,7 @@ import {
   type ZoneKind,
 } from "@stage-planner/shared";
 import * as S from "../state/appState";
-
-/** 편집을 되돌리기 한 단계로 묶습니다(focus에서 시작, blur에서 확정). */
-function editHandlers(apply: (v: string) => void) {
-  let dirty = false;
-  return {
-    onFocus: () => {
-      S.store.beginTxn();
-      dirty = false;
-    },
-    onInput: (e: Event) => {
-      dirty = true;
-      apply((e.target as HTMLInputElement).value);
-    },
-    onBlur: () => {
-      if (dirty) S.store.commitTxn();
-      else S.store.cancelTxn();
-      dirty = false;
-    },
-    onKeyDown: (e: KeyboardEvent) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-    },
-  };
-}
+import { EditInput } from "./EditInput";
 
 export function Props() {
   S.docVersion.value;
@@ -65,8 +43,8 @@ export function Props() {
     return (
       <div class="props">
         <span class="selnm">{o.label || t?.name || "장비"}</span>
-        <span class="pg">X:<input class="inp" type="number" step="0.1" value={r2(o.x)} {...editHandlers(setNum("x"))} />m</span>
-        <span class="pg">Y:<input class="inp" type="number" step="0.1" value={r2(o.y)} {...editHandlers(setNum("y"))} />m</span>
+        <span class="pg">X:<EditInput class="inp" type="number" step="0.1" value={r2(o.x)} onEdit={setNum("x")} />m</span>
+        <span class="pg">Y:<EditInput class="inp" type="number" step="0.1" value={r2(o.y)} onEdit={setNum("y")} />m</span>
         {t && t.variants.length > 1 && (
           <span class="pg">규격:
             <select class="inp wide" value={o.variantId ?? ""}
@@ -77,24 +55,24 @@ export function Props() {
           </span>
         )}
         <span class="pg">크기:
-          <input class="inp" type="number" step="0.01" min="0.05" value={r2(o.w)}
-            {...editHandlers((v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: Math.max(S.MIN_SIZE_M, parseFloat(v) || o.w), d: o.d }))} />
+          <EditInput class="inp" type="number" step="0.01" min="0.05" value={r2(o.w)}
+            onEdit={(v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: Math.max(S.MIN_SIZE_M, parseFloat(v) || o.w), d: o.d })} />
           ×
-          <input class="inp" type="number" step="0.01" min="0.05" value={r2(o.d)}
-            {...editHandlers((v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: o.w, d: Math.max(S.MIN_SIZE_M, parseFloat(v) || o.d) }))} />m
+          <EditInput class="inp" type="number" step="0.01" min="0.05" value={r2(o.d)}
+            onEdit={(v) => S.resizeObject(o.id, { x: o.x, y: o.y, w: o.w, d: Math.max(S.MIN_SIZE_M, parseFloat(v) || o.d) })} />m
         </span>
         <span class="pg">회전:
-          <input class="inp" type="number" step="5" value={Math.round(o.rot)}
-            {...editHandlers((v) => S.setObjectRotation(o.id, ((parseFloat(v) || 0) % 360 + 360) % 360))} />°
+          <EditInput class="inp" type="number" step="5" value={Math.round(o.rot)}
+            onEdit={(v) => S.setObjectRotation(o.id, ((parseFloat(v) || 0) % 360 + 360) % 360)} />°
         </span>
         <span class="pg">레이블:
-          <input class="inp wide" type="text" value={o.label}
-            {...editHandlers((v) =>
+          <EditInput class="inp wide" type="text" value={o.label}
+            onEdit={(v) =>
               S.store.mutate((d) => {
                 const t2 = d.stagePlans[0].objects.find((x) => x.id === sel.id);
                 if (t2) t2.label = v;
-              }),
-            )} />
+              })
+            } />
         </span>
         <label class="pg">
           <input type="checkbox" checked={!o.onStage}
@@ -119,8 +97,8 @@ export function Props() {
       <div class="props">
         <span class="selnm">{zoneLabel(z)}</span>
         <span class="pg">이름:
-          <input class="inp wide" type="text" id="zoneName" value={z.name}
-            {...editHandlers((v) => S.setZoneName(z.id, v))} />
+          <EditInput class="inp wide" type="text" id="zoneName" value={z.name}
+            onEdit={(v) => S.setZoneName(z.id, v)} />
         </span>
         <span class="pg">종류:
           <select class="inp wide" id="zoneKind" value={z.kind}
@@ -131,9 +109,9 @@ export function Props() {
         </span>
         {zoneNeedsHeight(z.kind) && (
           <span class="pg">높이:
-            <input class="inp" type="number" step="0.05" min="0" max="10" id="zoneHeight"
+            <EditInput class="inp" type="number" step="0.05" min="0" max="10" id="zoneHeight"
               value={z.heightM ?? 0}
-              {...editHandlers((v) => S.setZoneHeight(z.id, parseFloat(v) || 0))} />m
+              onEdit={(v) => S.setZoneHeight(z.id, parseFloat(v) || 0)} />m
           </span>
         )}
         <span class="pg">꼭짓점 {z.polygon.length}개 · 변 중점을 탭해 더합니다</span>
@@ -148,22 +126,22 @@ export function Props() {
     <div class="props">
       <span class="selnm">{n.text || "메모"}</span>
       <span class="pg">이름:
-        <input class="inp wide" type="text" value={n.text}
-          {...editHandlers((v) =>
+        <EditInput class="inp wide" type="text" value={n.text}
+          onEdit={(v) =>
             S.store.mutate((d) => {
               const t2 = d.stagePlans[0].notes.find((x) => x.id === sel.id);
               if (t2) t2.text = v;
-            }),
-          )} />
+            })
+          } />
       </span>
       <span class="pg">역할:
-        <input class="inp wide" type="text" value={n.role}
-          {...editHandlers((v) =>
+        <EditInput class="inp wide" type="text" value={n.role}
+          onEdit={(v) =>
             S.store.mutate((d) => {
               const t2 = d.stagePlans[0].notes.find((x) => x.id === sel.id);
               if (t2) t2.role = v;
-            }),
-          )} />
+            })
+          } />
       </span>
       <button class="btn btn-danger" onClick={S.deleteSelected}>삭제</button>
     </div>
@@ -192,12 +170,12 @@ function VertexProps() {
     <div class="props">
       <span class="selnm">꼭짓점 {i + 1} / {pts.length}</span>
       <span class="pg">X:
-        <input class="inp" type="number" step="0.1" id="vx" value={r1(p.x)}
-          {...editHandlers((v) => S.setVertexPos(i, parseFloat(v) || 0, pts[i].y))} />m
+        <EditInput class="inp" type="number" step="0.1" id="vx" value={r1(p.x)}
+          onEdit={(v) => S.setVertexPos(i, parseFloat(v) || 0, pts[i].y)} />m
       </span>
       <span class="pg">Y:
-        <input class="inp" type="number" step="0.1" id="vy" value={r1(p.y)}
-          {...editHandlers((v) => S.setVertexPos(i, pts[i].x, parseFloat(v) || 0))} />m
+        <EditInput class="inp" type="number" step="0.1" id="vy" value={r1(p.y)}
+          onEdit={(v) => S.setVertexPos(i, pts[i].x, parseFloat(v) || 0)} />m
       </span>
       <button class="btn btn-danger" id="btnDelVertex" disabled={tooFew}
         onClick={S.removeSelectedVertex}>삭제</button>

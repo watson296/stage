@@ -6,35 +6,10 @@ import {
   type Genre,
 } from "@stage-planner/shared";
 import * as S from "../state/appState";
+import { EditInput, numEdit } from "./EditInput";
 import * as P from "../state/paState";
 import { addPreset, presetSpec, removePreset } from "../state/presets";
 import { readOnly } from "../net/client";
-
-/** 숫자 입력 한 칸. 고치는 동안을 되돌리기 한 단계로 묶습니다. */
-function numHandlers(apply: (v: number) => void) {
-  let dirty = false;
-  return {
-    onFocus: () => {
-      S.store.beginTxn();
-      dirty = false;
-    },
-    onInput: (e: Event) => {
-      const v = parseFloat((e.target as HTMLInputElement).value);
-      if (Number.isFinite(v)) {
-        dirty = true;
-        apply(v);
-      }
-    },
-    onBlur: () => {
-      if (dirty) S.store.commitTxn();
-      else S.store.cancelTxn();
-      dirty = false;
-    },
-    onKeyDown: (e: KeyboardEvent) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-    },
-  };
-}
 
 function Num(props: {
   label: string;
@@ -49,9 +24,9 @@ function Num(props: {
   return (
     <label class="pa-num">
       <span>{props.label}{props.unit ? ` (${props.unit})` : ""}</span>
-      <input class="inp" type="number" id={props.id} value={props.value}
+      <EditInput class="inp" type="number" id={props.id} value={props.value}
         min={props.min} max={props.max} step={props.step ?? 1}
-        {...numHandlers(props.onNum)} />
+        onEdit={numEdit(props.onNum)} />
     </label>
   );
 }
