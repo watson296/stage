@@ -129,6 +129,27 @@ function DeviceList() {
   );
 }
 
+/** 접속하면서 호스트 내용으로 바뀐 이 기기의 작업을 다시 엽니다. */
+function BackupCard() {
+  if (!N.backupAvailable.value || !N.canEdit()) return null;
+  const online = N.connState.value === "online";
+  const go = (): void => {
+    const msg = online
+      ? "지금 내용을 접속 전 작업으로 바꿀까요? 호스트에 올라가 모든 기기에 퍼집니다."
+      : "지금 내용을 접속 전 작업으로 바꿀까요?";
+    if (window.confirm(msg)) void N.restoreBackup();
+  };
+  return (
+    <section class="card">
+      <h2>접속 전 작업</h2>
+      <p class="muted">
+        호스트에 접속할 때 이 기기의 작업이 호스트 내용과 달라서 따로 남겨 두었습니다.
+      </p>
+      <button class="btn" id="btnRestore" onClick={go}>접속 전 작업 되살리기</button>
+    </section>
+  );
+}
+
 function HowTo() {
   const base = N.httpBase();
   return (
@@ -163,6 +184,7 @@ export function HostScreen() {
     <div class="pa">
       <div class="pa-col">
         {online ? <Connected /> : <ConnectForm />}
+        <BackupCard />
         <HowTo />
       </div>
       <div class="pa-col">

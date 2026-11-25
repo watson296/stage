@@ -7,6 +7,8 @@ import { migrate, type Event } from "@stage-planner/shared";
 const DB_NAME = "stage-planner";
 const STORE = "docs";
 const KEY = "current";
+/** 호스트에 접속하기 직전의 이 기기 작업. 접속하면 호스트 내용으로 바뀌므로 남겨 둡니다. */
+const BACKUP_KEY = "beforeConnect";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -24,11 +26,24 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveEvent(doc: Event): Promise<void> {
+export function saveEvent(doc: Event): Promise<void> {
+  return put(KEY, doc);
+}
+
+/** 접속 전 작업을 따로 남깁니다. 자동 저장과 달리 호스트 내용으로 덮이지 않습니다. */
+export function saveBackup(doc: Event): Promise<void> {
+  return put(BACKUP_KEY, doc);
+}
+
+export function loadBackup(): Promise<{ event: Event; warnings: string[] } | null> {
+  return get(BACKUP_KEY);
+}
+
+async function put(key: string, doc: Event): Promise<void> {
   const db = await openDB();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(doc, KEY);
+    tx.objectStore(STORE).put(doc, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error ?? new Error("저장에 실패했습니다."));
     tx.onabort = () => reject(tx.error ?? new Error("저장이 중단되었습니다."));
@@ -41,11 +56,15 @@ export async function saveEvent(doc: Event): Promise<void> {
  * 버전이 만든 것일 수 있어서, 그대로 쓰면 그때는 없던 칸(PA 입력, 공지 등)이
  * 빠진 채로 화면에 올라가 화면이 통째로 비어 보입니다.
  */
-export async function loadEvent(): Promise<{ event: Event; warnings: string[] } | null> {
+export function loadEvent(): Promise<{ event: Event; warnings: string[] } | null> {
+  return get(KEY);
+}
+
+async function get(key: string): Promise<{ event: Event; warnings: string[] } | null> {
   const db = await openDB();
   const raw = await new Promise<unknown>((resolve, reject) => {
     const tx = db.transaction(STORE, "readonly");
-    const req = tx.objectStore(STORE).get(KEY);
+    const req = tx.objectStore(STORE).get(key);
     req.onsuccess = () => resolve(req.result ?? null);
     req.onerror = () => reject(req.error ?? new Error("불러오기에 실패했습니다."));
   });

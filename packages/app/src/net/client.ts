@@ -4,12 +4,16 @@
 import { signal } from "@preact/signals";
 import {
   MAX_PUBLISH_BYTES,
+  cloneEvent,
+  hasContent,
   migrate,
+  sameContent,
   type Device,
   type Notice,
   type Role,
 } from "@stage-planner/shared";
 import { store, docVersion, toast } from "../state/appState";
+import { loadBackup, saveBackup } from "../state/autosave";
 
 export type ConnState = "offline" | "connecting" | "online";
 
@@ -22,6 +26,8 @@ export const liveNotices = signal<Notice[]>([]);
 /** 서버 시각 − 내 시각(ms). 남은 시간을 모두 같은 숫자로 보게 맞춥니다(SPEC 9.6). */
 export const serverSkewMs = signal(0);
 export const hostUrl = signal("");
+/** 접속 전 작업이 따로 남아 있는지. 호스트 화면에서 되살리기 단추를 보입니다. */
+export const backupAvailable = signal(false);
 
 let ws: WebSocket | null = null;
 let wanted: { url: string; code: string; role: Role; name: string } | null = null;
@@ -141,8 +147,80 @@ function applySnapshot(raw: unknown, serverTime: string): void {
   applyingRemote = true;
   store.replace(event);
   applyingRemote = false;
+  setSkew(serverTime);
+}
+
+function setSkew(serverTime: string): void {
   const t = Date.parse(serverTime);
   if (!Number.isNaN(t)) serverSkewMs.value = t - Date.now();
+}
+
+/**
+ * 접속했을 때 이 기기의 작업을 어떻게 할지 정합니다.
+ *
+ * 호스트가 단일 원본이라 보통은 호스트 내용을 따릅니다. 그러면 이 기기에서
+ * 만든 작업이 자동 저장까지 덮이므로, 내용이 다르면 먼저 따로 남겨 둡니다.
+ * 운영자가 빈 호스트(새로 띄웠거나 꺼졌다 다시 켠 호스트)에 붙으면 덮지 않고
+ * 이 기기의 작업을 올립니다.
+ */
+function onWelcome(role: Role, raw: unknown, serverTime: string): void {
+  const local = cloneEvent(store.get());
+  const host = migrate(raw).event;
+  const localHas = hasContent(local);
+  const differs = localHas && !sameContent(local, host);
+
+  if (differs) {
+    saveBackup(local)
+      .then(() => (backupAvailable.value = true))
+      .catch(() =>
+        toast("접속 전 작업을 따로 남기지 못했습니다. 저장(JSON)으로 파일을 남겨 두세요.", true),
+      );
+  }
+
+  if (role === "operator" && localHas && !hasContent(host)) {
+    setSkew(serverTime);
+    publishNow();
+    toast("호스트가 비어 있어 이 기기의 작업을 올렸습니다.");
+    return;
+  }
+
+  applyingRemote = true;
+  store.replace(host);
+  applyingRemote = false;
+  setSkew(serverTime);
+  toast(
+    differs
+      ? "호스트의 내용으로 바꿨습니다. 접속 전 작업은 호스트 화면의 '접속 전 작업 되살리기'로 다시 열 수 있습니다."
+      : "호스트에 접속했습니다.",
+  );
+}
+
+/**
+ * 접속 전 작업을 다시 엽니다. 운영자로 붙어 있으면 그대로 호스트에 올라갑니다.
+ * 읽기 전용으로 붙어 있을 때는 다음 스냅샷에 덮이므로 쓰지 않습니다.
+ */
+export async function restoreBackup(): Promise<void> {
+  if (!canEdit()) {
+    toast("읽기 전용으로 붙어 있을 때는 되살릴 수 없습니다. 접속을 끊은 뒤 해 주세요.", true);
+    return;
+  }
+  try {
+    const saved = await loadBackup();
+    if (!saved) {
+      backupAvailable.value = false;
+      toast("되살릴 작업이 없습니다.", true);
+      return;
+    }
+    store.replace(saved.event);
+    saved.warnings.forEach((w) => toast(w));
+    toast(
+      connState.value === "online"
+        ? "접속 전 작업을 되살려 호스트에 올렸습니다."
+        : "접속 전 작업을 되살렸습니다.",
+    );
+  } catch (e) {
+    toast(e instanceof Error ? e.message : "되살리지 못했습니다.", true);
+  }
 }
 
 function handle(msg: { t: string; payload: Record<string, unknown> }): void {
@@ -155,8 +233,7 @@ function handle(msg: { t: string; payload: Record<string, unknown> }): void {
       myRole.value = p.role;
       connState.value = "online";
       connMessage.value = "";
-      applySnapshot(p.snapshot, p.serverTime);
-      toast("호스트에 접속했습니다.");
+      onWelcome(p.role, p.snapshot, p.serverTime);
       break;
     }
     case "snapshot": {
@@ -292,3 +369,8 @@ store.subscribe(() => {
 export function liveVersion(): number {
   return docVersion.value;
 }
+
+// 앞서 남겨 둔 접속 전 작업이 있으면 되살리기 단추를 보입니다.
+loadBackup()
+  .then((b) => (backupAvailable.value = b != null))
+  .catch(() => {});
