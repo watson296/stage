@@ -2,8 +2,15 @@
 // 5단계에서 서버·클라이언트가 이 타입을 함께 씁니다.
 import type { Device, Event, Notice, Role } from "../model/types";
 
-/** 메시지 하나의 최대 크기(바이트). 넘으면 연결을 끊습니다. */
+/** 메시지 하나의 최대 크기(바이트). 넘으면 거부합니다. */
 export const MAX_MESSAGE_BYTES = 64 * 1024;
+
+/**
+ * 운영자의 `publish`만 예외로 이만큼까지 받습니다. 공연 전체를 한 번에 올리므로
+ * 장비가 400개쯤 되면 64KB를 넘습니다. 스키마 상한(장비 1000개 등)을 채워도
+ * 넉넉한 크기입니다. 접속 코드를 넣기 전에는 이 예외를 쓰지 못합니다.
+ */
+export const MAX_PUBLISH_BYTES = 2 * 1024 * 1024;
 
 export type Entity = "stagePlan" | "timetableItem" | "notice";
 

@@ -343,3 +343,82 @@ describe("실시간 연결", () => {
     b.close();
   });
 });
+
+describe("호스트가 꺼지지 않아야 하는 입력", () => {
+  it("깨진 주소에는 400으로 답하고 계속 동작합니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    const bad = await fetch(`http://127.0.0.1:${port}/%E0%A4%A`);
+    expect(bad.status).toBe(400);
+    const ok = await fetch(`http://127.0.0.1:${port}/qr.svg`);
+    expect(ok.status).toBe(200);
+  });
+
+  it("코드를 넣기 전에 보낸 큰 메시지는 끊고 계속 동작합니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    const ws = connect(port);
+    ws.on("error", () => {});
+    await new Promise((r) => ws.on("open", r));
+    const closed = new Promise((r) => ws.on("close", r));
+    ws.send("x".repeat(70 * 1024));
+    await closed;
+    const again = await hello(port, host.codes.display, "display", "TV");
+    expect((await next(again, "welcome")).payload.role).toBe("display");
+    again.close();
+  });
+
+  it("전송 상한을 넘는 프레임도 프로세스를 끄지 않습니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    const ws = connect(port);
+    ws.on("error", () => {});
+    await new Promise((r) => ws.on("open", r));
+    const closed = new Promise((r) => ws.on("close", r));
+    ws.send("x".repeat(3 * 1024 * 1024));
+    await closed;
+    const ok = await fetch(`http://127.0.0.1:${port}/qr.svg`);
+    expect(ok.status).toBe(200);
+  });
+
+  it("운영자는 64KB가 넘는 공연도 올릴 수 있습니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    const a = await hello(port, host.codes.operator, "operator", "운영자");
+    await next(a, "welcome");
+    const big = emptyEvent();
+    big.stagePlans[0].objects = Array.from({ length: 600 }, (_, i) => ({
+      id: `obj-${i}`, type: "amp_guitar", x: 1, y: 1, w: 0.6, d: 0.3, h: 0.5, z: 0, rot: 0,
+      label: `기타 앰프 ${i}`, onStage: true,
+    }));
+    const msg = JSON.stringify({ t: "publish", payload: { snapshot: big } });
+    expect(Buffer.byteLength(msg)).toBeGreaterThan(64 * 1024);
+    a.send(msg);
+    const snap = await next(a, "snapshot");
+    expect(snap.payload.snapshot.stagePlans[0].objects).toHaveLength(600);
+    a.close();
+  });
+
+  it("publish가 아닌 메시지는 64KB를 넘으면 거부하고 끊습니다", async () => {
+    host = await startHost({ port: 0, address: "127.0.0.1" });
+    const port = (host.server.address() as { port: number }).port;
+    const a = await hello(port, host.codes.operator, "operator", "운영자");
+    await next(a, "welcome");
+    a.send(JSON.stringify({ t: "notice", payload: { level: "normal", text: "가".repeat(70 * 1024), targets: [] } }));
+    const err = await next(a, "error");
+    expect(err.payload.code).toBe("too_big");
+    await new Promise((r) => (a.readyState === a.CLOSED ? r(null) : a.on("close", r)));
+    expect(a.readyState).toBe(a.CLOSED);
+  });
+});
+
+describe("공지 상한", () => {
+  it("공지는 정해진 개수를 넘으면 오래된 것부터 버립니다", () => {
+    const hub = new Hub();
+    for (let i = 0; i < 310; i++) hub.addNotice("normal", `공지 ${i}`, ["display"]);
+    const list = hub.snapshot().notices;
+    expect(list).toHaveLength(300);
+    expect(list[0].text).toBe("공지 10");
+    expect(list[299].text).toBe("공지 309");
+  });
+});

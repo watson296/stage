@@ -12,6 +12,7 @@ import {
   parseClientMessage,
   ERR,
   MAX_MESSAGE_BYTES,
+  MAX_PUBLISH_BYTES,
   type ClientMessage,
   type Event,
   type Role,
@@ -82,10 +83,16 @@ export async function startHost(opts: HostOptions = {}): Promise<HostHandle> {
       res.end("같은 네트워크 안에서만 접속할 수 있습니다.");
       return;
     }
-    void serveStatic(req, res, opts.appDir, url);
+    // 응답 도중 생긴 예외가 프로세스를 끄지 않게 여기서 받습니다.
+    serveStatic(req, res, opts.appDir, url).catch(() => {
+      if (!res.headersSent) res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+      res.end("요청을 처리하지 못했습니다.");
+    });
   });
 
-  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
+  // 전송 단계 상한은 publish 기준입니다. 그 밖의 메시지는 받은 뒤 64KB로 거릅니다.
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PUBLISH_BYTES });
+  wss.on("error", () => {});
 
   server.on("upgrade", (req, socket, head) => {
     const ip = remoteIp(req);
@@ -128,6 +135,16 @@ async function serveStatic(
 ): Promise<void> {
   const path = (req.url ?? "/").split("?")[0];
 
+  // 깨진 퍼센트 인코딩(%E0%A4%A 등)은 decodeURIComponent가 예외를 던집니다.
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(path);
+  } catch {
+    res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+    res.end("주소를 읽을 수 없습니다.");
+    return;
+  }
+
   if (path === "/qr.svg") {
     const svg = await QRCode.toString(url, { type: "svg", margin: 1 });
     res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8" });
@@ -142,7 +159,7 @@ async function serveStatic(
   }
 
   // 경로를 벗어나는 요청(../)은 거부합니다.
-  const rel = normalize(decodeURIComponent(path)).replace(/^([/\\])+/, "");
+  const rel = normalize(decoded).replace(/^([/\\])+/, "");
   if (rel.split(sep).includes("..")) {
     res.writeHead(403).end();
     return;
@@ -196,12 +213,23 @@ function attach(
     send({ t: "pong", payload: {} });
   }, PING_MS);
 
+  // 'error' 처리기가 없으면 상한을 넘는 프레임 하나로 프로세스가 꺼집니다.
+  // ws가 연결을 닫으므로(1009 등) 여기서는 받기만 합니다.
+  ws.on("error", () => {
+    ws.terminate();
+  });
+
   ws.on("message", (data) => {
     if (!rate.allow()) {
       fail(ERR.TOO_FAST, "메시지를 너무 자주 보냈습니다.", true);
       return;
     }
     const raw = typeof data === "string" ? data : data.toString("utf8");
+    // 접속 코드를 넣기 전에는 큰 메시지를 받지 않습니다.
+    if (!deviceId && Buffer.byteLength(raw) > MAX_MESSAGE_BYTES) {
+      fail(ERR.TOO_BIG, "메시지가 너무 큽니다.", true);
+      return;
+    }
     const parsed = parseClientMessage(raw);
     if (isParseError(parsed)) {
       fail(parsed.code, parsed.message, parsed.code === ERR.TOO_BIG);

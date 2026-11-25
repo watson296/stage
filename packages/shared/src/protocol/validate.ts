@@ -3,7 +3,7 @@
 
 import { CAPS, asString, isObject } from "../model/schema";
 import type { Role } from "../model/types";
-import { MAX_MESSAGE_BYTES, type ClientMessage, type Entity } from "./messages";
+import { MAX_MESSAGE_BYTES, MAX_PUBLISH_BYTES, type ClientMessage, type Entity } from "./messages";
 
 export const ERR = {
   TOO_BIG: "too_big",
@@ -48,7 +48,7 @@ function isEntity(v: unknown): v is Entity {
  * 거부합니다. 성공하면 **정제된** 메시지를 돌려주므로 서버는 이 값만 씁니다.
  */
 export function parseClientMessage(raw: string): ClientMessage | ParseError {
-  if (raw.length > MAX_MESSAGE_BYTES) {
+  if (raw.length > MAX_PUBLISH_BYTES) {
     return { code: ERR.TOO_BIG, message: "메시지가 너무 큽니다." };
   }
   let data: unknown;
@@ -59,6 +59,10 @@ export function parseClientMessage(raw: string): ClientMessage | ParseError {
   }
   if (!isObject(data) || typeof data.t !== "string") {
     return { code: ERR.BAD_MESSAGE, message: "메시지 형식이 맞지 않습니다." };
+  }
+  // 큰 메시지는 공연 전체를 올리는 publish만 허용합니다.
+  if (data.t !== "publish" && raw.length > MAX_MESSAGE_BYTES) {
+    return { code: ERR.TOO_BIG, message: "메시지가 너무 큽니다." };
   }
   const p = isObject(data.payload) ? data.payload : {};
 

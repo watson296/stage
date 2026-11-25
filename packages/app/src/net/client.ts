@@ -3,6 +3,7 @@
 
 import { signal } from "@preact/signals";
 import {
+  MAX_PUBLISH_BYTES,
   migrate,
   type Device,
   type Notice,
@@ -226,7 +227,17 @@ function applyPatched(
 // ── 내보내기 ─────────────────────────────────────────────────────────────────
 export function publishNow(): void {
   if (myRole.value !== "operator") return;
-  send({ t: "publish", payload: { snapshot: store.get() } });
+  // 공지와 접속 기기 목록은 호스트가 가진 것을 씁니다(hub.publish). 올릴 필요가
+  // 없고, 공지가 쌓이면 메시지만 커집니다.
+  const msg = JSON.stringify({
+    t: "publish",
+    payload: { snapshot: { ...store.get(), notices: [], devices: [] } },
+  });
+  if (new Blob([msg]).size > MAX_PUBLISH_BYTES) {
+    toast("공연 내용이 너무 커서 호스트에 올리지 못했습니다. 저장(JSON)으로 파일을 남겨 두세요.", true);
+    return;
+  }
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
 }
 
 export function sendItemStart(itemId: string): void {

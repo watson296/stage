@@ -5,6 +5,7 @@ import {
   canDo,
   ERR,
   MAX_MESSAGE_BYTES,
+  MAX_PUBLISH_BYTES,
   type ClientMessage,
 } from "../src/index";
 
@@ -43,6 +44,13 @@ describe("메시지 검증", () => {
   it("64KB를 넘으면 거부합니다", () => {
     const big = JSON.stringify({ t: "ping", payload: { x: "가".repeat(MAX_MESSAGE_BYTES) } });
     expect(err(big)).toBe(ERR.TOO_BIG);
+  });
+
+  it("publish는 64KB를 넘어도 받고, 상한을 넘으면 거부합니다", () => {
+    const pub = (n: number) =>
+      JSON.stringify({ t: "publish", payload: { snapshot: { name: "x".repeat(n) } } });
+    expect(isParseError(parseClientMessage(pub(MAX_MESSAGE_BYTES * 2)))).toBe(false);
+    expect(err(pub(MAX_PUBLISH_BYTES))).toBe(ERR.TOO_BIG);
   });
 
   it("고칠 수 있는 칸만 남깁니다", () => {

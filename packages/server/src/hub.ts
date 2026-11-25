@@ -2,6 +2,7 @@
 // 받은 내용은 믿지 않고 migrate로 한 번 거릅니다.
 
 import {
+  CAPS,
   emptyEvent,
   sanitizeEvent,
   type Device,
@@ -106,6 +107,9 @@ export class Hub {
       rev: 1,
     };
     this.doc.notices.push(notice);
+    // 공지가 끝없이 쌓이면 스냅샷이 커집니다. 오래된 것부터 버립니다.
+    const over = this.doc.notices.length - CAPS.MAX_NOTICES;
+    if (over > 0) this.doc.notices.splice(0, over);
     return notice;
   }
 
